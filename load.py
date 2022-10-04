@@ -45,6 +45,7 @@ def make_simple_cfg(settings):
     # simulator backend
     sim_cfg = habitat_sim.SimulatorConfiguration()
     sim_cfg.scene_id = settings["scene"]
+
     # agent
     agent_cfg = habitat_sim.agent.AgentConfiguration()
 
@@ -62,7 +63,21 @@ def make_simple_cfg(settings):
     ]
     rgb_sensor_spec.sensor_subtype = habitat_sim.SensorSubType.PINHOLE
 
-    #depth snesor
+    # define a second camera for top-down views
+    rgb_sensor_spec2 = habitat_sim.CameraSensorSpec()
+    rgb_sensor_spec2.uuid = "color_sensor2"
+    rgb_sensor_spec2.sensor_type = habitat_sim.SensorType.COLOR
+    rgb_sensor_spec2.resolution = [settings["height"], settings["width"]]
+    rgb_sensor_spec2.position = [0.0, settings["sensor_height"]+0.65, -1]
+    rgb_sensor_spec2.orientation = [
+        -np.pi/2,
+        0.0,
+        0.0,
+    ]
+    rgb_sensor_spec2.sensor_subtype = habitat_sim.SensorSubType.PINHOLE
+
+
+    #depth sensor
     depth_sensor_spec = habitat_sim.CameraSensorSpec()
     depth_sensor_spec.uuid = "depth_sensor"
     depth_sensor_spec.sensor_type = habitat_sim.SensorType.DEPTH
@@ -75,7 +90,7 @@ def make_simple_cfg(settings):
     ]
     depth_sensor_spec.sensor_subtype = habitat_sim.SensorSubType.PINHOLE
 
-    #semantic snesor
+    #semantic sensor
     semantic_sensor_spec = habitat_sim.CameraSensorSpec()
     semantic_sensor_spec.uuid = "semantic_sensor"
     semantic_sensor_spec.sensor_type = habitat_sim.SensorType.SEMANTIC
@@ -88,7 +103,7 @@ def make_simple_cfg(settings):
     ]
     semantic_sensor_spec.sensor_subtype = habitat_sim.SensorSubType.PINHOLE
 
-    agent_cfg.sensor_specifications = [rgb_sensor_spec, depth_sensor_spec, semantic_sensor_spec]
+    agent_cfg.sensor_specifications = [rgb_sensor_spec, depth_sensor_spec, semantic_sensor_spec, rgb_sensor_spec2]
 
     return habitat_sim.Configuration(sim_cfg, [agent_cfg])
 
@@ -132,9 +147,11 @@ def navigateAndSee(action=""):
         observations = sim.step(action)
         #print("action: ", action)
 
-        cv2.imshow("RGB", transform_rgb_bgr(observations["color_sensor"]))
         cv2.imshow("depth", transform_depth(observations["depth_sensor"]))
         cv2.imshow("semantic", transform_semantic(observations["semantic_sensor"]))
+        cv2.imshow("RGB front view", transform_rgb_bgr(observations["color_sensor"]))
+        cv2.imshow("RGB top down", transform_rgb_bgr(observations["color_sensor2"]))
+
         agent_state = agent.get_state()
         sensor_state = agent_state.sensor_states['color_sensor']
         print("camera pose: x y z rw rx ry rz")
@@ -145,7 +162,8 @@ action = "move_forward"
 navigateAndSee(action)
 
 def save_img():
-    cv2.imwrite("view.png", transform_rgb_bgr(observations["color_sensor"]))  # save as image
+    cv2.imwrite("front_view.png", transform_rgb_bgr(observations["color_sensor"]))  # save as image
+    cv2.imwrite("top_view.png", transform_rgb_bgr(observations["color_sensor2"]))  # save as image
     print("image saved at " + str(os.getcwd()))
 
 while True:

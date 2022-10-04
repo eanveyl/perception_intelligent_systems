@@ -71,8 +71,8 @@ if __name__ == "__main__":
 
     pitch_ang = -90
 
-    front_rgb = "front_view_path.png"
-    top_rgb = "top_view_path.png"
+    front_rgb = "front_view.png"
+    top_rgb = "top_view.png"
 
     # click the pixels on window
     img = cv2.imread(top_rgb, 1)
