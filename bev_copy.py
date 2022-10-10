@@ -23,9 +23,9 @@ class Projection(object):
             :return: New pixels on perspective(front) view image
         """
         # build the intrinsics projection
-        f = np.sqrt(self.height**2+self.width**2)/(2*np.tan(fov*0.5))
-        u_o = 0 #int(self.width/2)
-        v_o = 0 #int(self.height/2)  # TODO this is just an assumption! Check this part! 
+        f = 1#np.sqrt(self.height**2+self.width**2)/(2*np.tan(fov*0.5))
+        u_o = 0#int(self.width/2)
+        v_o = 0#0int(self.height/2)  # TODO this is just an assumption! Check this part! 
         K = np.matrix([[f, 0, u_o], [0, f, v_o], [0, 0, 1]])  # intrinsics projection
         print("K=" + str(K))
 
@@ -34,29 +34,30 @@ class Projection(object):
 
         # build the camera extrinsic matrix
         # start with the translation
-        t_x = 0  # translation in x
-        t_y = 0.65  # translation in y
-        t_z = -1  # translation in z
+        t_x = 0 # translation in x
+        t_y = 0  # translation in y
+        t_z = 0  # translation in z
         T = np.vstack((np.hstack((np.identity(3),[[t_x], [t_y], [t_z]])), [0, 0, 0, 1]))  # translation matrix
         print("T=" + str(T))
+
         # rotation 
         alpha = 0  # yaw
-        beta = -np.pi/2  # pitch
+        beta = 0#-np.pi/2  # pitch
         gamma = 0  # roll
         r_yaw = np.matrix([[np.cos(alpha), -np.sin(alpha), 0], [np.sin(alpha), np.cos(alpha), 0], [0, 0, 1]])
         r_pitch = np.matrix([[np.cos(beta), 0, np.sin(beta)], [0, 1, 0], [-np.sin(beta), 0, np.cos(beta)]])
         r_roll = np.matrix([[1, 0 , 0], [0, np.cos(gamma), -np.sin(gamma)], [0, np.sin(gamma), np.cos(gamma)]])
-        rotation_matrix = r_yaw * r_pitch * r_roll
+        rotation_matrix = r_yaw @ r_pitch @ r_roll
         R = np.vstack((np.hstack((rotation_matrix, np.zeros((3,1)))),[0,0,0,1]))  # rotation matrix
         print("R=" + str(R))
 
         # perform the transformation in total
         new_pixels = list()
         for x,y in self.points:
-            u, v, *leftover = K*I_c*T*R*np.array([[x], [y], [0], [1]])  # X, Y, Z, 1  # TODO assuming z is the height of the camera above the ground (?)
-            new_pixels.append([u.item(), v.item()])#, 1]))  # use .item() function since the u, v are unpacked as 1x1 matrices and we only need the float inside
+            u, v, *leftover = K@I_c@T@R@np.array([[x], [y], [0], [1]])  # X, Y, Z, 1  # TODO assuming z is the height of the camera above the ground (?)
+            new_pixels.append([u.item()/leftover.item(), v.item()/leftover.item()])#, 1]))  # use .item() function since the u, v are unpacked as 1x1 matrices and we only need the float inside # TODO: divide u and v by the leftover to transform from homogeneous coorinates back??
             print(new_pixels)
-            if leftover:
+            if leftover and np.sum(leftover)>1:
                 print("warning, the computation delivered a leftover of != 1")
 
         
@@ -108,10 +109,10 @@ def click_event(event, x, y, flags, params):
 
 if __name__ == "__main__":
 
-    pitch_ang = -np.pi  # in degrees
+    pitch_ang = 0  # in degrees
 
     front_rgb = "screenshots/view1/front_view.png"
-    top_rgb = "screenshots/view1/top_view.png"
+    top_rgb = "screenshots/view1/front_view.png"
 
     # click the pixels on window
     img = cv2.imread(top_rgb, 1)

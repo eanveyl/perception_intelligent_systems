@@ -68,7 +68,7 @@ def make_simple_cfg(settings):
     rgb_sensor_spec2.uuid = "color_sensor2"
     rgb_sensor_spec2.sensor_type = habitat_sim.SensorType.COLOR
     rgb_sensor_spec2.resolution = [settings["height"], settings["width"]]
-    rgb_sensor_spec2.position = [0.0, settings["sensor_height"]+0.65, -1]
+    rgb_sensor_spec2.position = [0.0, settings["sensor_height"]+0.9, 0]
     rgb_sensor_spec2.orientation = [
         -np.pi/2,
         0.0,
@@ -117,7 +117,7 @@ agent = sim.initialize_agent(sim_settings["default_agent"])
 
 # Set agent state
 agent_state = habitat_sim.AgentState()
-agent_state.position = np.array([0.0, 0.0, 0.0])  # agent in world space
+agent_state.position = np.array([0.0, 0, 0.0])  # agent in world space
 agent.set_state(agent_state)
 
 # obtain the default, discrete actions that an agent can perform
