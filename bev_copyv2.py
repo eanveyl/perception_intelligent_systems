@@ -5,14 +5,7 @@ import numpy as np
 points = []
 
 def transform_2d_to_3d(value, focal_length, height_z, axis_displacement):
-    return -1*(value-axis_displacement)*height_z/focal_length  # TODO: not sure if this -1 is a good idea
-
-def trs_2d_3d(points, focal_length, height_z, axis_displacement):
-    basic_trs = np.vectorize(transform_2d_to_3d)
-    temp_matrix = basic_trs(points, focal_length, height_z, axis_displacement)
-
-    return 0
-
+    return (value-axis_displacement)*height_z/focal_length  # TODO: not sure if this -1 is a good idea
 
 
 class Projection(object):
@@ -60,7 +53,7 @@ class Projection(object):
         T = np.vstack((np.hstack((np.identity(3),[[t_x], [t_y], [t_z]])), [0, 0, 0, 1]))  # translation matrix
         print("T=" + str(T))
 
-        alpha = 0  # yaw
+        alpha = np.pi  # yaw
         beta = 0  # pitch
         gamma = np.pi/2  # roll
         r_yaw = np.matrix([[np.cos(alpha), -np.sin(alpha), 0], [np.sin(alpha), np.cos(alpha), 0], [0, 0, 1]])
@@ -133,8 +126,8 @@ if __name__ == "__main__":
 
     pitch_ang = 0  # in degrees
 
-    front_rgb = "screenshots/altview3/front_view.png"
-    top_rgb = "screenshots/altview3/top_view.png"
+    front_rgb = "screenshots/altview2/front_view.png"
+    top_rgb = "screenshots/altview2/top_view.png"
 
     # click the pixels on window
     img = cv2.imread(top_rgb, 1)
