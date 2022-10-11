@@ -164,6 +164,7 @@ navigateAndSee(action)
 def save_img():
     cv2.imwrite("front_view.png", transform_rgb_bgr(observations["color_sensor"]))  # save as image
     cv2.imwrite("top_view.png", transform_rgb_bgr(observations["color_sensor2"]))  # save as image
+    cv2.imwrite("front_depth_view.png", transform_depth(observations["depth_sensor"]))  # save as image
     print("image saved at " + str(os.getcwd()))
 
 while True:

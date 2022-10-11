@@ -5,7 +5,7 @@ import numpy as np
 points = []
 
 def transform_2d_to_3d(value, focal_length, height_z, axis_displacement):
-    return (value-axis_displacement)*height_z/focal_length  # TODO: not sure if this -1 is a good idea
+    return (value-axis_displacement)*height_z/focal_length  
 
 
 class Projection(object):
@@ -66,7 +66,6 @@ class Projection(object):
         print("Final Transformation Matrix=" + str(I_c@T@R))
         # perform the transformation in total
         new_pixels = list()
-        #top_view_3d = np.vstack((transform_2d_to_3d_v(fake_points, f, height_z, axis_displacement), [1, 1, 1, 1]))
         self.points = np.transpose(self.points)  # transpose them because they get saved horizontally and not vertically
         top_view_3d = np.vstack((transform_2d_to_3d_v(self.points, f, height_z, axis_displacement), [1, 1, 1, 1]))
         #top_view_3d = np.vstack((trs_2d_3d(self.points, f, height_z, axis_displacement), [1, 1, 1, 1]))
