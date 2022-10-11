@@ -88,10 +88,11 @@ if __name__ == "__main__":
     f = 256  # focal length
     axis_displacement = 256
 
-    pcd1 = load_img_to_pcd("screenshots/depview1/front_depth_view.png", f, axis_displacement)
+    pcd1 = load_img_to_pcd("screenshots/dep2view1/front_depth_view.png", f, axis_displacement)
     #o3d.visualization.draw_geometries([pcd1])
 
-    pcd2 = load_img_to_pcd("screenshots/depview2/front_depth_view.png", f, axis_displacement)
+    pcd2 = load_img_to_pcd("screenshots/dep2view4/front_depth_view.png", f, axis_displacement)
+    pcd3 = load_img_to_pcd("screenshots/dep2view6/front_depth_view.png", f, axis_displacement)
     #o3d.visualization.draw_geometries([pcd1, pcd2])
 
     voxel_size = 0.05  # 5cm
@@ -105,7 +106,7 @@ if __name__ == "__main__":
 
     result_icp = local_icp_registration(source_down, target_down, source_fpfh, target_fpfh, voxel_size)
     print(result_icp)
-    #draw_registration_result(source_down, target_down, result_icp.transformation)
+    draw_registration_result(source_down, target_down, result_icp.transformation)
     print(result_icp.transformation)
 
     
