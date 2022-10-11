@@ -6,14 +6,9 @@ from matplotlib.pyplot import axis
 import numpy as np
 import open3d as o3d
 from yaml import load
-import bev_copyv2
 import copy
 
-
-def transform_2d_to_3d(value, focal_length, height_z, axis_displacement):
-    return (value-axis_displacement)*height_z/focal_length 
-
-def load_img_to_pcd(path, f, axis_displacement):
+def depth_image_to_point_cloud(path, f, axis_displacement):
     img = cv2.imread(path)
 
     rows, cols,_ = img.shape
@@ -75,17 +70,7 @@ def draw_registration_result(source, target, transformation):
                                       lookat=[1.9892, 2.0208, 1.8945],
                                       up=[-0.2779, -0.9482, 0.1556])
 
-def merge_point_clouds(pc1, pc2, transformation):
-    pc1_temp = copy.deepcopy(pc1)
-    pc2_temp = copy.deepcopy(pc2)
-    
-    pc0 = o3d.geometry.PointCloud()
-    pc0.points.extend(o3d.utility.Vector3dVector(np.asarray(pc1_temp.transform(transformation).points)))
-    pc0.points.extend(o3d.utility.Vector3dVector(np.asarray(pc2_temp.points)))
-
-    return copy.deepcopy(pc0)
-
-def local_icp_registration(source, target, source_fpfh, target_fpfh, voxel_size):
+def local_icp_algorithm(source, target, source_fpfh, target_fpfh, voxel_size):
     distance_threshold = voxel_size * 0.4
     print(":: Point-to-plane ICP registration is applied on original point")
     print("   clouds to refine the alignment. This time we use a strict")
@@ -103,24 +88,47 @@ if __name__ == "__main__":
     pcd0 = o3d.geometry.PointCloud()  # initialize base point cloud for global mapping
     views = list()
     transformation_matrices = list()
-
+    '''
     paths_to_images = [
         "/dep2view1/",
         "/dep2view2/",
         "/dep2view3/",
         "/dep2view4/",
+        "/dep2view5/",
         "/dep2view6/"
+    ]  # working!
+    '''
+    paths_to_images = [
+        "/dep3view1/",
+        "/dep3view2/",
+        "/dep3view3/",
+        "/dep3view4/",
+        "/dep3view5/",
+        "/dep3view6/",
+        "/dep3view7/",
+        "/dep3view8/",
+        "/dep3view9/",
+        "/dep3view10/",
+        "/dep3view11/",
+        "/dep3view12/",
+        "/dep3view13/",
+        "/dep3view14/",
+        "/dep3view15/",
+        "/dep3view16/",
+        "/dep3view17/",
+        "/dep3view18/",
+        "/dep3view19/",
+        "/dep3view20/",
     ]
-
+    
     for i in range(len(paths_to_images)):
 
+        if i+1 == len(paths_to_images):
+            break
 
-        pcd1 = load_img_to_pcd("screenshots" + paths_to_images[i] + "front_depth_view.png", f, axis_displacement)
-        #o3d.visualization.draw_geometries([pcd1])
-
-        pcd2 = load_img_to_pcd("screenshots" + paths_to_images[i+1] + "front_depth_view.png", f, axis_displacement)
+        pcd1 = depth_image_to_point_cloud("screenshots" + paths_to_images[i] + "front_depth_view.png", f, axis_displacement)
+        pcd2 = depth_image_to_point_cloud("screenshots" + paths_to_images[i+1] + "front_depth_view.png", f, axis_displacement)
         
-        #o3d.visualization.draw_geometries([pcd1, pcd2])
 
         voxel_size = 0.05  # 5cm
         source_down, source_fpfh = preprocess_point_cloud(pcd1, voxel_size)
@@ -131,25 +139,30 @@ if __name__ == "__main__":
 
         #draw_registration_result(source_down, target_down, result_ransac.transformation)
 
-        result_icp = local_icp_registration(source_down, target_down, source_fpfh, target_fpfh, voxel_size)
+        result_icp = local_icp_algorithm(source_down, target_down, source_fpfh, target_fpfh, voxel_size)
         print(result_icp)
-        draw_registration_result(source_down, target_down, result_icp.transformation)
+        #draw_registration_result(source_down, target_down, result_icp.transformation)
         print(result_icp.transformation)
 
-        #pcd0 = merge_point_clouds(source_down, target_down, result_icp.transformation)
         print("Current number of points in global map before update =" + str(pcd0.points.count))
-        pcd0.points.extend(o3d.utility.Vector3dVector(np.asarray(merge_point_clouds(source_down, target_down, result_icp.transformation).points)))
         print("Current number of points in global map after update =" + str(pcd0.points.count))
+
+        if transformation_matrices:  # if i >= 1
+            for n in range(len(views)):
+                views[n] = views[n].transform(transformation_matrices[i-1])
 
         views.append(copy.deepcopy(source_down.transform(result_icp.transformation)))
         views.append(copy.deepcopy(target_down))
         transformation_matrices.append(result_icp.transformation)
+        
+        print("Finished iteration " + str(i))
 
         
-        o3d.visualization.draw_geometries(views)
+        #o3d.visualization.draw_geometries(views)
 
-        
+    o3d.visualization.draw_geometries(views)
 
 
 
-    pcd3 = load_img_to_pcd("screenshots/dep2view6/front_depth_view.png", f, axis_displacement)
+
+    pcd3 = depth_image_to_point_cloud("screenshots/dep2view6/front_depth_view.png", f, axis_displacement)
