@@ -144,6 +144,8 @@ if __name__ == "__main__":
         views.append(copy.deepcopy(source_down.transform(result_icp.transformation)))
         views.append(copy.deepcopy(target_down))
         transformation_matrices.append(result_icp.transformation)
+
+        
         o3d.visualization.draw_geometries(views)
 
         
