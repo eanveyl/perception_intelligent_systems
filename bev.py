@@ -26,12 +26,9 @@ class Projection(object):
 
     def top_to_front(self, theta=0, phi=0, gamma=0, dx=0, dy=0, dz=0, fov=np.pi/2):
         """
-            Project the top view pixels to the front view pixels.
+            Project the top view pixels to the front view toptopixels.
             :return: New pixels on perspective(front) view image
         """
-        #fake_points = [[325, 325, 272, 273],
-        #            [ 39,  71,  69,  37,],
-        #            [  1,   1,   1,   1]]
         # transform points from 2d UI coordinate system to 3D camera world
         transform_2d_to_3d_v = np.vectorize(transform_2d_to_3d)  # 2D->3D
        
@@ -68,7 +65,6 @@ class Projection(object):
         new_pixels = list()
         self.points = np.transpose(self.points)  # transpose them because they get saved horizontally and not vertically
         top_view_3d = np.vstack((transform_2d_to_3d_v(self.points, f, height_z, axis_displacement), [1, 1, 1, 1]))
-        #top_view_3d = np.vstack((trs_2d_3d(self.points, f, height_z, axis_displacement), [1, 1, 1, 1]))
         front_view_3d = I_c@T@R@top_view_3d
 
         for i in range(front_view_3d.shape[1]):  # get the columns
@@ -85,7 +81,7 @@ class Projection(object):
         new_pixels = np.array(np.rint(new_pixels).astype(np.int32))  # round to the nearest integer to avoid problems
         new_image = cv2.fillPoly(
             self.image.copy(), [new_pixels], color)
-        #new_image = cv2.fillPoly(self.image.copy(), [np.array([[710, 641], [206, 632], [696, 488], [458, 485]])], color)
+        
         new_image = cv2.addWeighted(
             new_image, alpha, self.image, (1 - alpha), 0)
 

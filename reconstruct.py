@@ -88,7 +88,7 @@ if __name__ == "__main__":
     pcd0 = o3d.geometry.PointCloud()  # initialize base point cloud for global mapping
     views = list()
     transformation_matrices = list()
-    '''
+    
     paths_to_images = [
         "/dep2view1/",
         "/dep2view2/",
@@ -119,7 +119,8 @@ if __name__ == "__main__":
         "/dep3view18/",
         "/dep3view19/",
         "/dep3view20/",
-    ]
+    ]  # working!
+    '''
     
     for i in range(len(paths_to_images)):
 
@@ -143,9 +144,6 @@ if __name__ == "__main__":
         print(result_icp)
         #draw_registration_result(source_down, target_down, result_icp.transformation)
         print(result_icp.transformation)
-
-        print("Current number of points in global map before update =" + str(pcd0.points.count))
-        print("Current number of points in global map after update =" + str(pcd0.points.count))
 
         if transformation_matrices:  # if i >= 1
             for n in range(len(views)):
