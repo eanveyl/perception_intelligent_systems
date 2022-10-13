@@ -159,6 +159,7 @@ def navigateAndSee(action=""):
 
         global n_view
         cv2.imwrite("automated_front_depth_view" + str(n_view) + ".png", transform_depth(observations["depth_sensor"]))
+        cv2.imwrite("automated_front_rgb_view" + str(n_view) + ".png", transform_rgb_bgr(observations["color_sensor"]))
         n_view += 1  # increases the step number to ensure we don't create file name collisions
 
 observations = None  # define observations as a variable outside the navigateAndSee function, to facilitate saving an image

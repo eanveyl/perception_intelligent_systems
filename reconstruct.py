@@ -9,19 +9,23 @@ from yaml import load
 import copy
 import time
 
-def depth_image_to_point_cloud(path, f, axis_displacement):
-    img = cv2.imread(path)
+def depth_image_to_point_cloud(path_depth, path_rgb, f, axis_displacement):
+    img_depth = cv2.imread(path_depth)
+    img_rgb = cv2.imread(path_rgb)
 
-    rows, cols,_ = img.shape
+    rows, cols,_ = img_depth.shape
 
     coord_3d = list()
+    rgb_3d = list()
     for i in range(rows):
         for j in range(cols):
-            z = img[i,j][0]/255 * 20  # z value normalized to 20m (only estimate) TODO check the estimate
+            z = img_depth[i,j][0]/255 * 10  # z value normalized to 20m (only estimate) TODO check the estimate
             coord_3d.append([(j-axis_displacement)*z/f, (i-axis_displacement)*z/f, z])  # we do the unprojection from 2d to 3d in this step
+            rgb_3d.append([img_rgb[i,j][2]/255, img_rgb[i,j][1]/255, img_rgb[i,j][0]/255])
     
     pcd = o3d.geometry.PointCloud()
     pcd.points = o3d.utility.Vector3dVector(coord_3d)
+    pcd.colors = o3d.utility.Vector3dVector(rgb_3d)
 
     return pcd
 
@@ -90,7 +94,7 @@ if __name__ == "__main__":
     views = list()
     transformation_matrices = list()
     
-    paths_to_images = [
+    paths_to_depth_images = [
         "/dep2view1/front_depth_view.png",
         "/dep2view2/front_depth_view.png",
         "/dep2view3/front_depth_view.png",
@@ -123,23 +127,25 @@ if __name__ == "__main__":
     ]  # working!
     '''
     # This part is used to import views generated autonomously within the global view
-    highest_image_number = 23
-    paths_to_images = list()
+    highest_image_number = 20
+    paths_to_depth_images = list()
+    paths_to_rgb_images = list()
     for i in range(highest_image_number+1):
-        paths_to_images.append("/automated_views/automated_front_depth_view" + str(i) + ".png")
+        paths_to_depth_images.append("/automated_views/automated_front_depth_view" + str(i) + ".png")
+        paths_to_rgb_images.append("/automated_views/automated_front_rgb_view" + str(i) + ".png")
     
 
-    for i in range(len(paths_to_images)):
+    for i in range(len(paths_to_depth_images)):
         tic = time.time()  # used to measure loop execution time
 
-        if i+1 == len(paths_to_images):
+        if i+1 == len(paths_to_depth_images):
             break
 
-        pcd1 = depth_image_to_point_cloud("screenshots" + paths_to_images[i], f, axis_displacement)
-        pcd2 = depth_image_to_point_cloud("screenshots" + paths_to_images[i+1], f, axis_displacement)
+        pcd1 = depth_image_to_point_cloud("screenshots" + paths_to_depth_images[i], "screenshots" + paths_to_rgb_images[i], f, axis_displacement)
+        pcd2 = depth_image_to_point_cloud("screenshots" + paths_to_depth_images[i+1], "screenshots" + paths_to_rgb_images[i+1], f, axis_displacement)
         
 
-        voxel_size = 0.05  # 5cm
+        voxel_size = 0.10  # 10cm #0.05  # 5cm
         source_down, source_fpfh = preprocess_point_cloud(pcd1, voxel_size)
         target_down, target_fpfh = preprocess_point_cloud(pcd2, voxel_size)
 
@@ -169,7 +175,3 @@ if __name__ == "__main__":
 
     o3d.visualization.draw_geometries(views)
 
-
-
-
-    pcd3 = depth_image_to_point_cloud("screenshots/dep2view6/front_depth_view.png", f, axis_displacement)
