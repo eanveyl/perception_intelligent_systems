@@ -19,9 +19,9 @@ def depth_image_to_point_cloud(path_depth, path_rgb, f, axis_displacement):
     rgb_3d = list()
     for i in range(rows):
         for j in range(cols):
-            z = img_depth[i,j][0]/255 * 10  # z value normalized to 20m (only estimate) TODO check the estimate
+            z = img_depth[i,j][0]/255 * 20  # z value normalized to 20m (only estimate) TODO check the estimate
             coord_3d.append([(j-axis_displacement)*z/f, (i-axis_displacement)*z/f, z])  # we do the unprojection from 2d to 3d in this step
-            rgb_3d.append([img_rgb[i,j][2]/255, img_rgb[i,j][1]/255, img_rgb[i,j][0]/255])
+            rgb_3d.append([img_rgb[i,j][2]/255, img_rgb[i,j][1]/255, img_rgb[i,j][0]/255])  # CV2 uses BGR and O3D uses RGB
     
     pcd = o3d.geometry.PointCloud()
     pcd.points = o3d.utility.Vector3dVector(coord_3d)
@@ -145,7 +145,7 @@ if __name__ == "__main__":
         pcd2 = depth_image_to_point_cloud("screenshots" + paths_to_depth_images[i+1], "screenshots" + paths_to_rgb_images[i+1], f, axis_displacement)
         
 
-        voxel_size = 0.10  # 10cm #0.05  # 5cm
+        voxel_size = 0.10    # 10cm #0.05  # 5cm
         source_down, source_fpfh = preprocess_point_cloud(pcd1, voxel_size)
         target_down, target_fpfh = preprocess_point_cloud(pcd2, voxel_size)
 
@@ -163,11 +163,14 @@ if __name__ == "__main__":
             for n in range(len(views)):
                 views[n] = views[n].transform(transformation_matrices[i-1])
 
+        #target_down.points.append([0, -0.4, 0])
+        #target_down.colors.append([1, 0, 0])
+
         views.append(copy.deepcopy(source_down.transform(result_icp.transformation)))
         views.append(copy.deepcopy(target_down))
         transformation_matrices.append(result_icp.transformation)
         
-        print("Finished iteration #" + str(i))
+        print("Finished iteration #" + str(i) + "/" + str(len(paths_to_depth_images)) + " - Total progress=" + str(int(i/len(paths_to_depth_images)*100)) + "%")
         print("Iteration time [s]=" + str(time.time() - tic))
 
         
