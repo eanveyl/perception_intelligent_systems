@@ -157,7 +157,12 @@ def navigateAndSee(action=""):
         print("camera pose: x y z rw rx ry rz")
         print(sensor_state.position[0],sensor_state.position[1],sensor_state.position[2],  sensor_state.rotation.w, sensor_state.rotation.x, sensor_state.rotation.y, sensor_state.rotation.z)
 
+        global n_view
+        cv2.imwrite("automated_front_depth_view" + str(n_view) + ".png", transform_depth(observations["depth_sensor"]))
+        n_view += 1  # increases the step number to ensure we don't create file name collisions
+
 observations = None  # define observations as a variable outside the navigateAndSee function, to facilitate saving an image
+n_view = 0  # initialize the step count at 0
 action = "move_forward"
 navigateAndSee(action)
 

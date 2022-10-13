@@ -7,6 +7,7 @@ import numpy as np
 import open3d as o3d
 from yaml import load
 import copy
+import time
 
 def depth_image_to_point_cloud(path, f, axis_displacement):
     img = cv2.imread(path)
@@ -90,45 +91,52 @@ if __name__ == "__main__":
     transformation_matrices = list()
     
     paths_to_images = [
-        "/dep2view1/",
-        "/dep2view2/",
-        "/dep2view3/",
-        "/dep2view4/",
-        "/dep2view5/",
-        "/dep2view6/"
+        "/dep2view1/front_depth_view.png",
+        "/dep2view2/front_depth_view.png",
+        "/dep2view3/front_depth_view.png",
+        "/dep2view4/front_depth_view.png",
+        "/dep2view5/front_depth_view.png",
+        "/dep2view6/front_depth_view.png"
     ]  # working!
     '''
     paths_to_images = [
-        "/dep3view1/",
-        "/dep3view2/",
-        "/dep3view3/",
-        "/dep3view4/",
-        "/dep3view5/",
-        "/dep3view6/",
-        "/dep3view7/",
-        "/dep3view8/",
-        "/dep3view9/",
-        "/dep3view10/",
-        "/dep3view11/",
-        "/dep3view12/",
-        "/dep3view13/",
-        "/dep3view14/",
-        "/dep3view15/",
-        "/dep3view16/",
-        "/dep3view17/",
-        "/dep3view18/",
-        "/dep3view19/",
-        "/dep3view20/",
+        "/dep3view1/front_depth_view.png",
+        "/dep3view2/front_depth_view.png",
+        "/dep3view3/front_depth_view.png",
+        "/dep3view4/front_depth_view.png",
+        "/dep3view5/front_depth_view.png",
+        "/dep3view6/front_depth_view.png",
+        "/dep3view7/front_depth_view.png",
+        "/dep3view8/front_depth_view.png",
+        "/dep3view9/front_depth_view.png",
+        "/dep3view10/front_depth_view.png",
+        "/dep3view11/front_depth_view.png",
+        "/dep3view12/front_depth_view.png",
+        "/dep3view13/front_depth_view.png",
+        "/dep3view14/front_depth_view.png",
+        "/dep3view15/front_depth_view.png",
+        "/dep3view16/front_depth_view.png",
+        "/dep3view17/front_depth_view.png",
+        "/dep3view18/front_depth_view.png",
+        "/dep3view19/front_depth_view.png",
+        "/dep3view20/front_depth_view.png",
     ]  # working!
     '''
+    # This part is used to import views generated autonomously within the global view
+    highest_image_number = 23
+    paths_to_images = list()
+    for i in range(highest_image_number+1):
+        paths_to_images.append("/automated_views/automated_front_depth_view" + str(i) + ".png")
     
+
     for i in range(len(paths_to_images)):
+        tic = time.time()  # used to measure loop execution time
 
         if i+1 == len(paths_to_images):
             break
 
-        pcd1 = depth_image_to_point_cloud("screenshots" + paths_to_images[i] + "front_depth_view.png", f, axis_displacement)
-        pcd2 = depth_image_to_point_cloud("screenshots" + paths_to_images[i+1] + "front_depth_view.png", f, axis_displacement)
+        pcd1 = depth_image_to_point_cloud("screenshots" + paths_to_images[i], f, axis_displacement)
+        pcd2 = depth_image_to_point_cloud("screenshots" + paths_to_images[i+1], f, axis_displacement)
         
 
         voxel_size = 0.05  # 5cm
@@ -141,7 +149,7 @@ if __name__ == "__main__":
         #draw_registration_result(source_down, target_down, result_ransac.transformation)
 
         result_icp = local_icp_algorithm(source_down, target_down, source_fpfh, target_fpfh, voxel_size)
-        print(result_icp)
+        print("ICP result=" + str(result_icp))
         #draw_registration_result(source_down, target_down, result_icp.transformation)
         print(result_icp.transformation)
 
@@ -153,7 +161,8 @@ if __name__ == "__main__":
         views.append(copy.deepcopy(target_down))
         transformation_matrices.append(result_icp.transformation)
         
-        print("Finished iteration " + str(i))
+        print("Finished iteration #" + str(i))
+        print("Iteration time [s]=" + str(time.time() - tic))
 
         
         #o3d.visualization.draw_geometries(views)
