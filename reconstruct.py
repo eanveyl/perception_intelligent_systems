@@ -127,31 +127,33 @@ if __name__ == "__main__":
     ]  # working!
     '''
     # This part is used to import views generated autonomously within the global view
-    highest_image_number = 20
+    highest_image_number = 44
     paths_to_depth_images = list()
     paths_to_rgb_images = list()
     for i in range(highest_image_number+1):
         paths_to_depth_images.append("/automated_views/automated_front_depth_view" + str(i) + ".png")
         paths_to_rgb_images.append("/automated_views/automated_front_rgb_view" + str(i) + ".png")
+    print("Loaded following images:" + str(paths_to_depth_images))
     
 
     for i in range(len(paths_to_depth_images)):
         tic = time.time()  # used to measure loop execution time
 
         if i+1 == len(paths_to_depth_images):
+            for n in range(len(views)):
+                views[n] = views[n].transform(transformation_matrices[i-1])  # TODO not sure if I should have this for-loop here
             break
-
+        
         pcd1 = depth_image_to_point_cloud("screenshots" + paths_to_depth_images[i], "screenshots" + paths_to_rgb_images[i], f, axis_displacement)
         pcd2 = depth_image_to_point_cloud("screenshots" + paths_to_depth_images[i+1], "screenshots" + paths_to_rgb_images[i+1], f, axis_displacement)
-        
+        print("Processing images: " + str(paths_to_depth_images[i]) + " , " + str(paths_to_depth_images[i+1]))
 
         voxel_size = 0.10    # 10cm #0.05  # 5cm
         source_down, source_fpfh = preprocess_point_cloud(pcd1, voxel_size)
         target_down, target_fpfh = preprocess_point_cloud(pcd2, voxel_size)
 
         result_ransac = execute_global_registration(source_down, target_down, source_fpfh, target_fpfh, voxel_size)
-        print(result_ransac)
-
+        print("Global registration=" + str(result_ransac))
         #draw_registration_result(source_down, target_down, result_ransac.transformation)
 
         result_icp = local_icp_algorithm(source_down, target_down, source_fpfh, target_fpfh, voxel_size)
@@ -161,16 +163,17 @@ if __name__ == "__main__":
 
         if transformation_matrices:  # if i >= 1
             for n in range(len(views)):
-                views[n] = views[n].transform(transformation_matrices[i-1])
+                views[n] = views[n].transform(transformation_matrices[i-1])  # transform all previous views to the new coordinate system to daisychain all point clouds together
 
         #target_down.points.append([0, -0.4, 0])
         #target_down.colors.append([1, 0, 0])
 
-        views.append(copy.deepcopy(source_down.transform(result_icp.transformation)))
-        views.append(copy.deepcopy(target_down))
-        transformation_matrices.append(result_icp.transformation)
+        #views.append(copy.deepcopy(source_down.transform(result_icp.transformation)))
+        views.append(copy.deepcopy(source_down))
+        #views.append(copy.deepcopy(target_down))
+        transformation_matrices.append(result_icp.transformation)  # save the latest transformation matrix, which will be used in the next iteration
         
-        print("Finished iteration #" + str(i) + "/" + str(len(paths_to_depth_images)) + " - Total progress=" + str(int(i/len(paths_to_depth_images)*100)) + "%")
+        print("Finished iteration #" + str(i) + "/" + str(len(paths_to_depth_images)-1) + " - Total progress=" + str(int(i/(len(paths_to_depth_images)-1)*100)) + "%")
         print("Iteration time [s]=" + str(time.time() - tic))
 
         
