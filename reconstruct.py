@@ -1,13 +1,68 @@
-from threading import local
+from gettext import translation
 from unittest import result
 import cv2
-from cv2 import merge
-from matplotlib.pyplot import axis
 import numpy as np
 import open3d as o3d
-from yaml import load
 import copy
 import time
+import scipy.optimize
+
+def clean_coordinates(points, threshold_length=0.46):  # 0.46 since its the absolute distance between steps (translation)
+    points = np.array(points)  # convert to a numpy array
+    remove_indexes = list()
+
+    for i in range(len(points)):
+        if i+1 == len(points):
+            break
+        
+        if np.linalg.norm(np.subtract(points[i], points[i+1])) < threshold_length:  # the length of the vector
+            remove_indexes.append(i+1)
+    
+    points = np.delete(points, np.r_[remove_indexes], axis=0)  # remove the list of indexes along the rows
+    
+    return points  
+
+
+def transformation_matrix_from_angles(t_x=0, t_y=0, t_z=0, yaw=0, pitch=0, roll=0):
+    T = np.vstack((np.hstack((np.identity(3),[[t_x], [t_y], [t_z]])), [0, 0, 0, 1]))  # translation matrix
+    #print("T=" + str(T))
+
+    alpha = yaw
+    beta = pitch
+    gamma = roll
+    r_yaw = np.matrix([[np.cos(alpha), -np.sin(alpha), 0], [np.sin(alpha), np.cos(alpha), 0], [0, 0, 1]])
+    r_pitch = np.matrix([[np.cos(beta), 0, np.sin(beta)], [0, 1, 0], [-np.sin(beta), 0, np.cos(beta)]])
+    r_roll = np.matrix([[1, 0 , 0], [0, np.cos(gamma), -np.sin(gamma)], [0, np.sin(gamma), np.cos(gamma)]])
+    rotation_matrix = r_yaw @ r_pitch @ r_roll
+    R = np.vstack((np.hstack((rotation_matrix, np.zeros((3,1)))),[0,0,0,1]))  # rotation matrix
+    return T@R
+
+def pcd_rescale(pcd, scale):
+    return o3d.utility.Vector3dVector(np.asarray(pcd.points)*scale)
+
+def alignment_loss_function(translation_and_angles, source_points, target_points):
+    source_point0 = np.hstack((source_points[0], [1]))
+    target_point0 = np.hstack((target_points[0], [1]))
+    source_point1 = np.hstack((source_points[1], [1]))  # append a 1 at the end of the 3D vector since it is a homogeneous coordinate system
+    target_point1 = np.hstack((target_points[1], [1]))
+    source_point2 = np.hstack((source_points[2], [1]))
+    target_point2 = np.hstack((source_points[2], [1]))
+    t_x, t_y, t_z, yaw, pitch, roll = translation_and_angles  # unpack the values
+    transformation_matrix = transformation_matrix_from_angles(t_x=t_x, t_y=t_y, t_z=t_z, yaw=yaw, pitch=pitch, roll=roll)
+    v1 = np.linalg.norm(np.subtract(transformation_matrix@source_point1, target_point1))
+    v2 = np.linalg.norm(np.subtract(transformation_matrix@source_point0, target_point0))  
+    v3 = np.linalg.norm(np.subtract(transformation_matrix@source_point2, target_point2)) # distance from one vector to the other one MINIMIZE THIS
+
+    loss = v1 + v2 + v3
+
+    #print("Loss=" + str(loss) + " | transformation_matrix=" + str(transformation_matrix))
+    print("Loss=" + str(loss) + " | v1=" + str(v1) + " v2=" + str(v2) + " v3=" + str(v3))
+    return loss
+
+def match_orientation(source_vector, target_vector, method=None):
+    sol = scipy.optimize.minimize(alignment_loss_function, x0=np.random.rand(6,1), args=(source_vector, target_vector), method=method)
+    print(sol)
+    return sol
 
 def depth_image_to_point_cloud(path_depth, path_rgb, f, axis_displacement):
     img_depth = cv2.imread(path_depth)
@@ -90,51 +145,25 @@ if __name__ == "__main__":
     f = 256  # focal length
     axis_displacement = 256
 
-    pcd0 = o3d.geometry.PointCloud()  # initialize base point cloud for global mapping
     views = list()
     transformation_matrices = list()
     
-    paths_to_depth_images = [
-        "/dep2view1/front_depth_view.png",
-        "/dep2view2/front_depth_view.png",
-        "/dep2view3/front_depth_view.png",
-        "/dep2view4/front_depth_view.png",
-        "/dep2view5/front_depth_view.png",
-        "/dep2view6/front_depth_view.png"
-    ]  # working!
-    '''
-    paths_to_images = [
-        "/dep3view1/front_depth_view.png",
-        "/dep3view2/front_depth_view.png",
-        "/dep3view3/front_depth_view.png",
-        "/dep3view4/front_depth_view.png",
-        "/dep3view5/front_depth_view.png",
-        "/dep3view6/front_depth_view.png",
-        "/dep3view7/front_depth_view.png",
-        "/dep3view8/front_depth_view.png",
-        "/dep3view9/front_depth_view.png",
-        "/dep3view10/front_depth_view.png",
-        "/dep3view11/front_depth_view.png",
-        "/dep3view12/front_depth_view.png",
-        "/dep3view13/front_depth_view.png",
-        "/dep3view14/front_depth_view.png",
-        "/dep3view15/front_depth_view.png",
-        "/dep3view16/front_depth_view.png",
-        "/dep3view17/front_depth_view.png",
-        "/dep3view18/front_depth_view.png",
-        "/dep3view19/front_depth_view.png",
-        "/dep3view20/front_depth_view.png",
-    ]  # working!
-    '''
     # This part is used to import views generated autonomously within the global view
-    highest_image_number = 44
+    highest_image_number = 80
     paths_to_depth_images = list()
     paths_to_rgb_images = list()
     for i in range(highest_image_number+1):
         paths_to_depth_images.append("/automated_views/automated_front_depth_view" + str(i) + ".png")
         paths_to_rgb_images.append("/automated_views/automated_front_rgb_view" + str(i) + ".png")
     print("Loaded following images:" + str(paths_to_depth_images))
-    
+
+    with open('screenshots/automated_views/ground_truth.txt') as f_gt:
+        lines = f_gt.readlines()
+    ground_truth_coordinates = list()
+    for l in lines: 
+        l.strip()  # remove the newline
+        x_gt, y_gt, z_gt = l.split()
+        ground_truth_coordinates.append([float(x_gt), float(y_gt), float(z_gt)])
 
     for i in range(len(paths_to_depth_images)):
         tic = time.time()  # used to measure loop execution time
@@ -165,19 +194,45 @@ if __name__ == "__main__":
             for n in range(len(views)):
                 views[n] = views[n].transform(transformation_matrices[i-1])  # transform all previous views to the new coordinate system to daisychain all point clouds together
 
-        #target_down.points.append([0, -0.4, 0])
-        #target_down.colors.append([1, 0, 0])
+        source_down.points.append([0, -0.3, 0])
+        source_down.colors.append([1, 0, 0])
 
-        #views.append(copy.deepcopy(source_down.transform(result_icp.transformation)))
         views.append(copy.deepcopy(source_down))
-        #views.append(copy.deepcopy(target_down))
         transformation_matrices.append(result_icp.transformation)  # save the latest transformation matrix, which will be used in the next iteration
         
-        print("Finished iteration #" + str(i) + "/" + str(len(paths_to_depth_images)-1) + " - Total progress=" + str(int(i/(len(paths_to_depth_images)-1)*100)) + "%")
+        print("Finished iteration #" + str(i) + "/" + str(len(paths_to_depth_images)-1) + " - Total progress=" + str(int(i/(len(paths_to_depth_images)-2)*100)) + "%")
         print("Iteration time [s]=" + str(time.time() - tic))
 
-        
-        #o3d.visualization.draw_geometries(views)
 
-    o3d.visualization.draw_geometries(views)
+    # Connect the estimated position with lines
+    '''
+    path_lines = list()
+    for k in range(len(views)-1):
+        l_temp = o3d.geometry.LineSet().create_from_point_cloud_correspondences(views[k], views[k+1], [(len(views[k].points)-1, len(views[k+1].points)-1)])
+        l_temp.paint_uniform_color([1, 0, 0])
+        path_lines.append(l_temp)
+    '''  # WORK IN PROGRESS
+
+    # Add the ground truth data
+    pcd_gt = o3d.geometry.PointCloud()
+    pcd_gt.points = o3d.utility.Vector3dVector(ground_truth_coordinates)
+    
+    estimation_points = [view.points[-1] for view in views]
+    estimation_pcd = o3d.geometry.PointCloud()
+    estimation_points = clean_coordinates(estimation_points)  # remove duplicate coordinates to allow for alignment afterwards
+    estimation_pcd.points = o3d.utility.Vector3dVector(estimation_points)
+    estimation_pcd.paint_uniform_color([1,0,0])
+    pcd_gt.points = pcd_rescale(pcd_gt, -1.75*1.0883786784134555)  
+    pcd_gt.points = o3d.utility.Vector3dVector(clean_coordinates(np.asarray(pcd_gt.points)))
+    pcd_gt.transform(transformation_matrix_from_angles(t_x=-0.5, t_z=0, pitch=np.pi/4-0.1, yaw=np.pi))  # good approximation
+    pcd_gt.transform(transformation_matrix_from_angles(t_x=1.4096242, t_y=-0.44186634, t_z=-6.09409756, yaw=-0.08277106, pitch=-0.46497909, roll=0.07145173))
+    pcd_gt.transform(transformation_matrix_from_angles(t_x=0.005692279091429608, t_y=0.101841584301287, t_z=-0.004671523940031141, yaw=0.08850188056792659, pitch=0.006484899384427202, roll=-0.023994325861561187))
+    sol = match_orientation(np.asarray(pcd_gt.points)[0:3], np.asarray(estimation_pcd.points)[0:3])
+    pcd_gt.transform(transformation_matrix_from_angles(t_x=sol.x[0], t_y=sol.x[1], t_z=sol.x[2], yaw=sol.x[3], pitch=sol.x[4], roll=sol.x[5]))
+
+    # Visualize the whole thing
+    pcd_gt.paint_uniform_color([0,1,0])  # paint it green
+    o3d.visualization.draw_geometries(views + [pcd_gt])
+
+    print("DONE")
 

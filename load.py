@@ -117,7 +117,7 @@ agent = sim.initialize_agent(sim_settings["default_agent"])
 
 # Set agent state
 agent_state = habitat_sim.AgentState()
-agent_state.position = np.array([0.0, 1, 0.0])  # agent in world space
+agent_state.position = np.array([0.0, 0, 0.0])  # agent in world space
 agent.set_state(agent_state)
 
 # obtain the default, discrete actions that an agent can perform
@@ -160,6 +160,9 @@ def navigateAndSee(action=""):
         global n_view
         cv2.imwrite("automated_front_depth_view" + str(n_view) + ".png", transform_depth(observations["depth_sensor"]))
         cv2.imwrite("automated_front_rgb_view" + str(n_view) + ".png", transform_rgb_bgr(observations["color_sensor"]))
+        text_file = open("ground_truth.txt", "a")
+        n = text_file.write(str(sensor_state.position[0]) + " " + str(sensor_state.position[1]) + " " + str(sensor_state.position[2]) + "\n")
+        text_file.close()
         n_view += 1  # increases the step number to ensure we don't create file name collisions
 
 observations = None  # define observations as a variable outside the navigateAndSee function, to facilitate saving an image
