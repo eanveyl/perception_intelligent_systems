@@ -56,7 +56,7 @@ def alignment_loss_function(translation_and_angles, source_points, target_points
     loss = v1 + v2 + v3
 
     #print("Loss=" + str(loss) + " | transformation_matrix=" + str(transformation_matrix))
-    print("Loss=" + str(loss) + " | v1=" + str(v1) + " v2=" + str(v2) + " v3=" + str(v3))
+    #print("Loss=" + str(loss) + " | v1=" + str(v1) + " v2=" + str(v2) + " v3=" + str(v3))
     return loss
 
 def match_orientation(source_vector, target_vector, method=None):
@@ -149,7 +149,7 @@ if __name__ == "__main__":
     transformation_matrices = list()
     
     # This part is used to import views generated autonomously within the global view
-    highest_image_number = 80
+    highest_image_number = 30
     paths_to_depth_images = list()
     paths_to_rgb_images = list()
     for i in range(highest_image_number+1):

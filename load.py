@@ -1,3 +1,4 @@
+#export MESA_LOADER_DRIVER_OVERRIDE=i965  USE THIS
 import numpy as np
 from PIL import Image
 import numpy as np
@@ -10,7 +11,7 @@ import os
 # This is the scene we are going to load.
 # support a variety of mesh formats, such as .glb, .gltf, .obj, .ply
 ### put your scene path ###
-test_scene = "/home/edu/Downloads/apartment_0/apartment_0/habitat/mesh_semantic.ply"
+test_scene = "/home/edu/university_coding_projects/NYCU_Perception/scenes/apartment_0/apartment_0/habitat/mesh_semantic.ply"
 
 sim_settings = {
     "scene": test_scene,  # Scene path
