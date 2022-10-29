@@ -11,7 +11,7 @@ import os
 # This is the scene we are going to load.
 # support a variety of mesh formats, such as .glb, .gltf, .obj, .ply
 ### put your scene path ###
-test_scene = "/home/edu/university_coding_projects/NYCU_Perception/scenes/apartment_0/apartment_0/habitat/mesh_semantic.ply"
+test_scene = "/home/edu/university_coding_projects/NYCU_Perception/scenes/apartment_0/habitat/mesh_semantic.ply"
 
 sim_settings = {
     "scene": test_scene,  # Scene path
@@ -161,6 +161,7 @@ def navigateAndSee(action=""):
         global n_view
         cv2.imwrite("automated_front_depth_view" + str(n_view) + ".png", transform_depth(observations["depth_sensor"]))
         cv2.imwrite("automated_front_rgb_view" + str(n_view) + ".png", transform_rgb_bgr(observations["color_sensor"]))
+        cv2.imwrite("automated_front_semantic_view" + str(n_view) + ".png", transform_semantic(observations["semantic_sensor"]))
         text_file = open("ground_truth.txt", "a")
         n = text_file.write(str(sensor_state.position[0]) + " " + str(sensor_state.position[1]) + " " + str(sensor_state.position[2]) + "\n")
         text_file.close()

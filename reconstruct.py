@@ -149,7 +149,7 @@ if __name__ == "__main__":
     transformation_matrices = list()
     
     # This part is used to import views generated autonomously within the global view
-    highest_image_number = 30
+    highest_image_number = 20
     paths_to_depth_images = list()
     paths_to_rgb_images = list()
     for i in range(highest_image_number+1):

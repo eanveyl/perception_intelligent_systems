@@ -95,13 +95,13 @@ class Generator:
     def __init__(self, path):
         self._dataset_path = os.path.normpath(path)
         # fill the scene name you want to collect data from, and set the rooms
-        # self._scenes = ["apartment_1", "apartment_2",
-        #                 "frl_apartment_0", "frl_apartment_1",
-        #                 "hotel_0", "office_0", "office_1",
-        #                 "room_0", "room_1", "room_2"]
         self._scenes = ["apartment_1", "apartment_2",
-                        "frl_apartment_0", "frl_apartment_1"]
-        # # self._scenes = ["apartment_0"]
+                         "frl_apartment_0", "frl_apartment_1",
+                         "hotel_0", "office_0", "office_1",
+                         "room_0", "room_1", "room_2"]
+        #self._scenes = ["apartment_1", "apartment_2",
+        #                "frl_apartment_0", "frl_apartment_1"]
+        #self._scenes = ["apartment_0"]
         
         self._height = 512
         self._width = 512
