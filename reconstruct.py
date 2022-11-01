@@ -6,6 +6,8 @@ import open3d as o3d
 import copy
 import time
 import scipy.optimize
+from collections import Counter
+import matplotlib.colors
 
 def clean_coordinates(points, threshold_length=0.46):  # 0.46 since its the absolute distance between steps (translation)
     points = np.array(points)  # convert to a numpy array
@@ -21,7 +23,6 @@ def clean_coordinates(points, threshold_length=0.46):  # 0.46 since its the abso
     points = np.delete(points, np.r_[remove_indexes], axis=0)  # remove the list of indexes along the rows
     
     return points  
-
 
 def transformation_matrix_from_angles(t_x=0, t_y=0, t_z=0, yaw=0, pitch=0, roll=0):
     T = np.vstack((np.hstack((np.identity(3),[[t_x], [t_y], [t_z]])), [0, 0, 0, 1]))  # translation matrix
@@ -59,6 +60,20 @@ def alignment_loss_function(translation_and_angles, source_points, target_points
     #print("Loss=" + str(loss) + " | v1=" + str(v1) + " v2=" + str(v2) + " v3=" + str(v3))
     return loss
 
+def custom_voxel_down(pcd, voxel_size):
+    pcd_down, _, merged_points_list = pcd.voxel_down_sample_and_trace(voxel_size, pcd.get_min_bound(), pcd.get_max_bound(), approximate_class=True)
+    pool_colors = list()
+    for merged_points in merged_points_list:  # this is a workaround since the approximate_class option is not really working
+        colors = [matplotlib.colors.to_hex(np.asarray(pcd.colors)[point]) for point in merged_points]  # gather the colors and convert them to hex for easy counting
+        #print(colors)
+        occurences = Counter(colors)
+        #print(occurences.most_common())
+        pool_colors.append(np.array(matplotlib.colors.to_rgb(occurences.most_common(1)[0][0])))  # only append the most common color inside each voxel
+    pcd_down.colors = o3d.utility.Vector3dVector(pool_colors)
+
+    return pcd_down
+
+
 def match_orientation(source_vector, target_vector, method=None):
     sol = scipy.optimize.minimize(alignment_loss_function, x0=np.random.rand(6,1), args=(source_vector, target_vector), method=method)
     print(sol)
@@ -84,9 +99,14 @@ def depth_image_to_point_cloud(path_depth, path_rgb, f, axis_displacement):
 
     return pcd
 
-def preprocess_point_cloud(pcd, voxel_size):
+def preprocess_point_cloud(pcd, voxel_size, majority_voting_downsampling=False):
     print(":: Downsample with a voxel size %.3f." % voxel_size)
-    pcd_down = pcd.voxel_down_sample(voxel_size)
+
+    if not majority_voting_downsampling:
+        pcd_down = pcd.voxel_down_sample(voxel_size)  # original
+    else:
+        pcd_down = custom_voxel_down(pcd, voxel_size)  # uses majority class voting to decide on the color for the resulting point after the downsampling.     
+
 
     radius_normal = voxel_size * 2
     print(":: Estimate normal with search radius %.3f." % radius_normal)
@@ -149,7 +169,7 @@ if __name__ == "__main__":
     transformation_matrices = list()
     
     # This part is used to import views generated autonomously within the global view
-    highest_image_number = 20
+    highest_image_number = 150
     paths_to_depth_images = list()
     paths_to_rgb_images = list()
     for i in range(highest_image_number+1):
@@ -178,8 +198,8 @@ if __name__ == "__main__":
         print("Processing images: " + str(paths_to_depth_images[i]) + " , " + str(paths_to_depth_images[i+1]))
 
         voxel_size = 0.10    # 10cm #0.05  # 5cm
-        source_down, source_fpfh = preprocess_point_cloud(pcd1, voxel_size)
-        target_down, target_fpfh = preprocess_point_cloud(pcd2, voxel_size)
+        source_down, source_fpfh = preprocess_point_cloud(pcd1, voxel_size, majority_voting_downsampling = True)
+        target_down, target_fpfh = preprocess_point_cloud(pcd2, voxel_size, majority_voting_downsampling = True)
 
         result_ransac = execute_global_registration(source_down, target_down, source_fpfh, target_fpfh, voxel_size)
         print("Global registration=" + str(result_ransac))

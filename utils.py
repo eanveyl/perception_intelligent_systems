@@ -65,6 +65,21 @@ if __name__ == "__main__":
     #training_image_directory = "/home/edu/university_coding_projects/NYCU_Perception/semantic-segmentation-pytorch-master/data/HabitatDirectInput/images"
     #training_relative_path = "HabitatDirectInput/images"
     #annotation_relative_path = "HabitatDirectInput/annotations"
+    
+    training_image_directory = "/home/edu/university_coding_projects/NYCU_Perception/semantic-segmentation-pytorch-master/data/HabitatScenesApartment0/images/train"
+    training_relative_path = "HabitatScenesApartment0/images/train"
+    annotation_relative_path = "HabitatScenesApartment0/annotations/train"
+    create_image_indexes(training_image_directory, training_relative_path, annotation_relative_path, "habitat_onlyApt0_training.odgt")
+    
+    
+    training_image_directory = "/home/edu/university_coding_projects/NYCU_Perception/semantic-segmentation-pytorch-master/data/HabitatScenesApartment0/images/val"
+    training_relative_path = "HabitatScenesApartment0/images/val"
+    annotation_relative_path = "HabitatScenesApartment0/annotations/val"
+    create_image_indexes(training_image_directory, training_relative_path, annotation_relative_path, "habitat_onlyApt0_validation.odgt")
+    
+    
+    
+    
     #create_image_indexes_fake_annotations(training_image_directory, training_relative_path, annotation_relative_path, "habitatdirectinput.odgt")
 
-    rename_images_for_reconstruction("/home/edu/university_coding_projects/NYCU_Perception/semantic-segmentation-pytorch-master/ckpt/ade20k-hrnetv2-c1-edu/result")
+    #rename_images_for_reconstruction("/home/edu/university_coding_projects/NYCU_Perception/semantic-segmentation-pytorch-master/ckpt/ade20k-hrnetv2-c1-edu/result")
