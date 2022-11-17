@@ -89,7 +89,7 @@ def depth_image_to_point_cloud(path_depth, path_rgb, f, axis_displacement):
     rgb_3d = list()
     for i in range(rows):
         for j in range(cols):
-            z = img_depth[i,j][0]/255 * 20  # z value normalized to 20m (only estimate) TODO check the estimate
+            z = img_depth[i,j][0]/255 * 10  # z value normalized to 20m (only estimate) TODO check the estimate
             coord_3d.append([(j-axis_displacement)*z/f, (i-axis_displacement)*z/f, z])  # we do the unprojection from 2d to 3d in this step
             rgb_3d.append([img_rgb[i,j][2]/255, img_rgb[i,j][1]/255, img_rgb[i,j][0]/255])  # CV2 uses BGR and O3D uses RGB
     
@@ -169,13 +169,14 @@ if __name__ == "__main__":
     transformation_matrices = list()
     
     # This part is used to import views generated autonomously within the global view
-    highest_image_number = 150
+    highest_image_number = 30
     paths_to_depth_images = list()
     paths_to_rgb_images = list()
     for i in range(highest_image_number+1):
         paths_to_depth_images.append("/automated_views/automated_front_depth_view" + str(i) + ".png")
         paths_to_rgb_images.append("/automated_views/automated_front_rgb_view" + str(i) + ".png")
     print("Loaded following images:" + str(paths_to_depth_images))
+    paths_to_depth_images.reverse()
 
     with open('screenshots/automated_views/ground_truth.txt') as f_gt:
         lines = f_gt.readlines()
@@ -197,7 +198,7 @@ if __name__ == "__main__":
         pcd2 = depth_image_to_point_cloud("screenshots" + paths_to_depth_images[i+1], "screenshots" + paths_to_rgb_images[i+1], f, axis_displacement)
         print("Processing images: " + str(paths_to_depth_images[i]) + " , " + str(paths_to_depth_images[i+1]))
 
-        voxel_size = 0.10    # 10cm #0.05  # 5cm
+        voxel_size = 0.1   # 10cm #0.05  # 5cm
         source_down, source_fpfh = preprocess_point_cloud(pcd1, voxel_size, majority_voting_downsampling = True)
         target_down, target_fpfh = preprocess_point_cloud(pcd2, voxel_size, majority_voting_downsampling = True)
 
@@ -214,7 +215,7 @@ if __name__ == "__main__":
             for n in range(len(views)):
                 views[n] = views[n].transform(transformation_matrices[i-1])  # transform all previous views to the new coordinate system to daisychain all point clouds together
 
-        source_down.points.append([0, -0.3, 0])
+        source_down.points.append([0, 0, 0])
         source_down.colors.append([1, 0, 0])
 
         views.append(copy.deepcopy(source_down))
@@ -235,8 +236,10 @@ if __name__ == "__main__":
 
     # Add the ground truth data
     pcd_gt = o3d.geometry.PointCloud()
+    ground_truth_coordinates.reverse()
+    ground_truth_coordinates = np.multiply(np.array([1,1,-1]), ground_truth_coordinates)
     pcd_gt.points = o3d.utility.Vector3dVector(ground_truth_coordinates)
-    
+    '''
     estimation_points = [view.points[-1] for view in views]
     estimation_pcd = o3d.geometry.PointCloud()
     estimation_points = clean_coordinates(estimation_points)  # remove duplicate coordinates to allow for alignment afterwards
@@ -249,7 +252,7 @@ if __name__ == "__main__":
     pcd_gt.transform(transformation_matrix_from_angles(t_x=0.005692279091429608, t_y=0.101841584301287, t_z=-0.004671523940031141, yaw=0.08850188056792659, pitch=0.006484899384427202, roll=-0.023994325861561187))
     sol = match_orientation(np.asarray(pcd_gt.points)[0:3], np.asarray(estimation_pcd.points)[0:3])
     pcd_gt.transform(transformation_matrix_from_angles(t_x=sol.x[0], t_y=sol.x[1], t_z=sol.x[2], yaw=sol.x[3], pitch=sol.x[4], roll=sol.x[5]))
-
+    '''
     # Visualize the whole thing
     pcd_gt.paint_uniform_color([0,1,0])  # paint it green
     o3d.visualization.draw_geometries(views + [pcd_gt])
