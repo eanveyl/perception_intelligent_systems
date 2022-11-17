@@ -186,6 +186,7 @@ if __name__ == "__main__":
         x_gt, y_gt, z_gt = l.split()
         ground_truth_coordinates.append([float(x_gt), float(y_gt), float(z_gt)])
 
+    coordinate_system_origins = list()
     for i in range(len(paths_to_depth_images)):
         tic = time.time()  # used to measure loop execution time
 
@@ -214,10 +215,12 @@ if __name__ == "__main__":
         if transformation_matrices:  # if i >= 1
             for n in range(len(views)):
                 views[n] = views[n].transform(transformation_matrices[i-1])  # transform all previous views to the new coordinate system to daisychain all point clouds together
+                coordinate_system_origins[n] = transformation_matrices[i-1]@coordinate_system_origins[n]
 
         source_down.points.append([0, 0, 0])
         source_down.colors.append([1, 0, 0])
 
+        coordinate_system_origins.append([0,0,0,1])
         views.append(copy.deepcopy(source_down))
         transformation_matrices.append(result_icp.transformation)  # save the latest transformation matrix, which will be used in the next iteration
         
@@ -225,34 +228,16 @@ if __name__ == "__main__":
         print("Iteration time [s]=" + str(time.time() - tic))
 
 
-    # Connect the estimated position with lines
-    '''
-    path_lines = list()
-    for k in range(len(views)-1):
-        l_temp = o3d.geometry.LineSet().create_from_point_cloud_correspondences(views[k], views[k+1], [(len(views[k].points)-1, len(views[k+1].points)-1)])
-        l_temp.paint_uniform_color([1, 0, 0])
-        path_lines.append(l_temp)
-    '''  # WORK IN PROGRESS
-
     # Add the ground truth data
     pcd_gt = o3d.geometry.PointCloud()
-    ground_truth_coordinates.reverse()
-    ground_truth_coordinates = np.multiply(np.array([1,1,-1]), ground_truth_coordinates)
-    pcd_gt.points = o3d.utility.Vector3dVector(ground_truth_coordinates)
-    '''
-    estimation_points = [view.points[-1] for view in views]
-    estimation_pcd = o3d.geometry.PointCloud()
-    estimation_points = clean_coordinates(estimation_points)  # remove duplicate coordinates to allow for alignment afterwards
-    estimation_pcd.points = o3d.utility.Vector3dVector(estimation_points)
-    estimation_pcd.paint_uniform_color([1,0,0])
-    pcd_gt.points = pcd_rescale(pcd_gt, -1.75*1.0883786784134555)  
-    pcd_gt.points = o3d.utility.Vector3dVector(clean_coordinates(np.asarray(pcd_gt.points)))
-    pcd_gt.transform(transformation_matrix_from_angles(t_x=-0.5, t_z=0, pitch=np.pi/4-0.1, yaw=np.pi))  # good approximation
-    pcd_gt.transform(transformation_matrix_from_angles(t_x=1.4096242, t_y=-0.44186634, t_z=-6.09409756, yaw=-0.08277106, pitch=-0.46497909, roll=0.07145173))
-    pcd_gt.transform(transformation_matrix_from_angles(t_x=0.005692279091429608, t_y=0.101841584301287, t_z=-0.004671523940031141, yaw=0.08850188056792659, pitch=0.006484899384427202, roll=-0.023994325861561187))
-    sol = match_orientation(np.asarray(pcd_gt.points)[0:3], np.asarray(estimation_pcd.points)[0:3])
-    pcd_gt.transform(transformation_matrix_from_angles(t_x=sol.x[0], t_y=sol.x[1], t_z=sol.x[2], yaw=sol.x[3], pitch=sol.x[4], roll=sol.x[5]))
-    '''
+    ground_truth_coordinates.reverse()  # because we now read from last to first image
+    ground_truth_coordinates = np.multiply(np.array([1,1,-1]), ground_truth_coordinates)  # invert the z axis
+
+    # Add the estimated coordinate origins
+    calibration = np.subtract(ground_truth_coordinates[0], coordinate_system_origins[0][0:3])  # calculate the difference between the first two coordinates
+    ground_truth_coordinates_calibrated = np.subtract(ground_truth_coordinates, calibration)  # and use that to move the ground truth ever so slightly to align the first points
+    pcd_gt.points = o3d.utility.Vector3dVector(ground_truth_coordinates_calibrated)
+
     # Visualize the whole thing
     pcd_gt.paint_uniform_color([0,1,0])  # paint it green
     o3d.visualization.draw_geometries(views + [pcd_gt])
