@@ -105,6 +105,7 @@ def preprocess_point_cloud(pcd, voxel_size, majority_voting_downsampling=False):
     if not majority_voting_downsampling:
         pcd_down = pcd.voxel_down_sample(voxel_size)  # original
     else:
+        print("Using custom voxel downsampling!")
         pcd_down = custom_voxel_down(pcd, voxel_size)  # uses majority class voting to decide on the color for the resulting point after the downsampling.     
 
 
@@ -200,8 +201,8 @@ if __name__ == "__main__":
         print("Processing images: " + str(paths_to_depth_images[i]) + " , " + str(paths_to_depth_images[i+1]))
 
         voxel_size = 0.1   # 10cm #0.05  # 5cm
-        source_down, source_fpfh = preprocess_point_cloud(pcd1, voxel_size, majority_voting_downsampling = True)
-        target_down, target_fpfh = preprocess_point_cloud(pcd2, voxel_size, majority_voting_downsampling = True)
+        source_down, source_fpfh = preprocess_point_cloud(pcd1, voxel_size, majority_voting_downsampling=False)
+        target_down, target_fpfh = preprocess_point_cloud(pcd2, voxel_size, majority_voting_downsampling=False)
 
         result_ransac = execute_global_registration(source_down, target_down, source_fpfh, target_fpfh, voxel_size)
         print("Global registration=" + str(result_ransac))
@@ -230,11 +231,11 @@ if __name__ == "__main__":
 
     # Add the ground truth data
     pcd_gt = o3d.geometry.PointCloud()
-    ground_truth_coordinates.reverse()  # because we now read from last to first image
+    #ground_truth_coordinates.reverse()  # because we now read from last to first image
     ground_truth_coordinates = np.multiply(np.array([1,1,-1]), ground_truth_coordinates)  # invert the z axis
 
     # Add the estimated coordinate origins
-    calibration = np.subtract(ground_truth_coordinates[0], coordinate_system_origins[0][0:3])  # calculate the difference between the first two coordinates
+    calibration = np.subtract(ground_truth_coordinates[0], coordinate_system_origins[-1][0:3])  # calculate the difference between the first two coordinates
     ground_truth_coordinates_calibrated = np.subtract(ground_truth_coordinates, calibration)  # and use that to move the ground truth ever so slightly to align the first points
     pcd_gt.points = o3d.utility.Vector3dVector(ground_truth_coordinates_calibrated)
 

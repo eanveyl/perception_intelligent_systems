@@ -37,7 +37,7 @@ class Projection(object):
 
 
         # build the intrinsics projection
-        f = 256  # 1/focal_length = 2/N * tan(FOV/2)  # from paulbourke.net 
+        f = 256  # 1/focal_length = 2/N * tan(FOV/2)  # from paulbourke.net # in pixel (?)
 
         # build the I_c matrix
         I_c = np.hstack((np.identity(3), np.zeros((3,1))))
