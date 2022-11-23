@@ -168,6 +168,8 @@ if __name__ == "__main__":
 
     views = list()
     transformation_matrices = list()
+
+    remove_floor_and_ceiling = True
     
     # This part is used to import views generated autonomously within the global view
     highest_image_number = 30
@@ -241,7 +243,23 @@ if __name__ == "__main__":
 
     # Visualize the whole thing
     pcd_gt.paint_uniform_color([0,1,0])  # paint it green
-    o3d.visualization.draw_geometries(views + [pcd_gt])
 
+    if remove_floor_and_ceiling:
+        for v,_ in enumerate(views):
+            point_cloud = np.asarray(views[v].points)
+            colors = np.asarray(views[v].colors)
+            marked_for_removal = list()
+            for p in range(point_cloud.shape[0]):
+                if point_cloud[p][1] > 1.3 or point_cloud[p][1] < -0.7:  # if y-axis value > 1.3 (floor) or < -0.7 (ceiling)
+                    marked_for_removal.append(p)
+            point_cloud = np.delete(point_cloud, marked_for_removal, axis=0)
+            colors = np.delete(colors, marked_for_removal, axis=0)
+            
+            pcd = o3d.geometry.PointCloud()
+            pcd.points = o3d.utility.Vector3dVector(point_cloud)
+            pcd.colors = o3d.utility.Vector3dVector(colors)
+            views[v] = pcd
+    
+    o3d.visualization.draw_geometries(views + [pcd_gt])
     print("DONE")
 
