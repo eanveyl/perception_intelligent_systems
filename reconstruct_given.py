@@ -174,76 +174,83 @@ if __name__ == "__main__":
     
     # This part is used to import views generated autonomously within the global view
     highest_image_number = 30
-    paths_to_depth_images = list()
-    paths_to_rgb_images = list()
-    for i in range(highest_image_number+1):
-        paths_to_depth_images.append("/automated_views/automated_front_depth_view" + str(i) + ".png")
-        paths_to_rgb_images.append("/automated_views/automated_front_rgb_view" + str(i) + ".png")
-    print("Loaded following images:" + str(paths_to_depth_images))
-    paths_to_depth_images.reverse()
+    # paths_to_depth_images = list()
+    # paths_to_rgb_images = list()
+    # for i in range(highest_image_number+1):
+    #     paths_to_depth_images.append("/automated_views/automated_front_depth_view" + str(i) + ".png")
+    #     paths_to_rgb_images.append("/automated_views/automated_front_rgb_view" + str(i) + ".png")
+    # print("Loaded following images:" + str(paths_to_depth_images))
+    # paths_to_depth_images.reverse()
 
-    with open('screenshots/automated_views/ground_truth.txt') as f_gt:
-        lines = f_gt.readlines()
-    ground_truth_coordinates = list()
-    for l in lines: 
-        l.strip()  # remove the newline
-        x_gt, y_gt, z_gt = l.split()
-        ground_truth_coordinates.append([float(x_gt), float(y_gt), float(z_gt)])
+    # with open('screenshots/automated_views/ground_truth.txt') as f_gt:
+    #     lines = f_gt.readlines()
+    # ground_truth_coordinates = list()
+    # for l in lines: 
+    #     l.strip()  # remove the newline
+    #     x_gt, y_gt, z_gt = l.split()
+    #     ground_truth_coordinates.append([float(x_gt), float(y_gt), float(z_gt)])
 
-    coordinate_system_origins = list()
-    for i in range(len(paths_to_depth_images)):
-        tic = time.time()  # used to measure loop execution time
+    # coordinate_system_origins = list()
+    # for i in range(len(paths_to_depth_images)):
+    #     tic = time.time()  # used to measure loop execution time
 
-        if i+1 == len(paths_to_depth_images):
-            for n in range(len(views)):
-                views[n] = views[n].transform(transformation_matrices[i-1])  # TODO not sure if I should have this for-loop here
-            break
+    #     if i+1 == len(paths_to_depth_images):
+    #         for n in range(len(views)):
+    #             views[n] = views[n].transform(transformation_matrices[i-1])  # TODO not sure if I should have this for-loop here
+    #         break
         
-        pcd1 = depth_image_to_point_cloud("screenshots" + paths_to_depth_images[i], "screenshots" + paths_to_rgb_images[i], f, axis_displacement)
-        pcd2 = depth_image_to_point_cloud("screenshots" + paths_to_depth_images[i+1], "screenshots" + paths_to_rgb_images[i+1], f, axis_displacement)
-        print("Processing images: " + str(paths_to_depth_images[i]) + " , " + str(paths_to_depth_images[i+1]))
+    #     pcd1 = depth_image_to_point_cloud("screenshots" + paths_to_depth_images[i], "screenshots" + paths_to_rgb_images[i], f, axis_displacement)
+    #     pcd2 = depth_image_to_point_cloud("screenshots" + paths_to_depth_images[i+1], "screenshots" + paths_to_rgb_images[i+1], f, axis_displacement)
+    #     print("Processing images: " + str(paths_to_depth_images[i]) + " , " + str(paths_to_depth_images[i+1]))
 
-        voxel_size = 0.1   # 10cm #0.05  # 5cm
-        source_down, source_fpfh = preprocess_point_cloud(pcd1, voxel_size, majority_voting_downsampling=False)
-        target_down, target_fpfh = preprocess_point_cloud(pcd2, voxel_size, majority_voting_downsampling=False)
+    #     voxel_size = 0.1   # 10cm #0.05  # 5cm
+    #     source_down, source_fpfh = preprocess_point_cloud(pcd1, voxel_size, majority_voting_downsampling=False)
+    #     target_down, target_fpfh = preprocess_point_cloud(pcd2, voxel_size, majority_voting_downsampling=False)
 
-        result_ransac = execute_global_registration(source_down, target_down, source_fpfh, target_fpfh, voxel_size)
-        print("Global registration=" + str(result_ransac))
-        #draw_registration_result(source_down, target_down, result_ransac.transformation)
+    #     result_ransac = execute_global_registration(source_down, target_down, source_fpfh, target_fpfh, voxel_size)
+    #     print("Global registration=" + str(result_ransac))
+    #     #draw_registration_result(source_down, target_down, result_ransac.transformation)
 
-        result_icp = local_icp_algorithm(source_down, target_down, source_fpfh, target_fpfh, voxel_size)
-        print("ICP result=" + str(result_icp))
-        #draw_registration_result(source_down, target_down, result_icp.transformation)
-        print(result_icp.transformation)
+    #     result_icp = local_icp_algorithm(source_down, target_down, source_fpfh, target_fpfh, voxel_size)
+    #     print("ICP result=" + str(result_icp))
+    #     #draw_registration_result(source_down, target_down, result_icp.transformation)
+    #     print(result_icp.transformation)
 
-        if transformation_matrices:  # if i >= 1
-            for n in range(len(views)):
-                views[n] = views[n].transform(transformation_matrices[i-1])  # transform all previous views to the new coordinate system to daisychain all point clouds together
-                coordinate_system_origins[n] = transformation_matrices[i-1]@coordinate_system_origins[n]
+    #     if transformation_matrices:  # if i >= 1
+    #         for n in range(len(views)):
+    #             views[n] = views[n].transform(transformation_matrices[i-1])  # transform all previous views to the new coordinate system to daisychain all point clouds together
+    #             coordinate_system_origins[n] = transformation_matrices[i-1]@coordinate_system_origins[n]
 
-        source_down.points.append([0, 0, 0])
-        source_down.colors.append([1, 0, 0])
+    #     source_down.points.append([0, 0, 0])
+    #     source_down.colors.append([1, 0, 0])
 
-        coordinate_system_origins.append([0,0,0,1])
-        views.append(copy.deepcopy(source_down))
-        transformation_matrices.append(result_icp.transformation)  # save the latest transformation matrix, which will be used in the next iteration
+    #     coordinate_system_origins.append([0,0,0,1])
+    #     views.append(copy.deepcopy(source_down))
+    #     transformation_matrices.append(result_icp.transformation)  # save the latest transformation matrix, which will be used in the next iteration
         
-        print("Finished iteration #" + str(i) + "/" + str(len(paths_to_depth_images)-1) + " - Total progress=" + str(int(i/(len(paths_to_depth_images)-2)*100)) + "%")
-        print("Iteration time [s]=" + str(time.time() - tic))
+    #     print("Finished iteration #" + str(i) + "/" + str(len(paths_to_depth_images)-1) + " - Total progress=" + str(int(i/(len(paths_to_depth_images)-2)*100)) + "%")
+    #     print("Iteration time [s]=" + str(time.time() - tic))
 
 
-    # Add the ground truth data
-    pcd_gt = o3d.geometry.PointCloud()
-    #ground_truth_coordinates.reverse()  # because we now read from last to first image
-    ground_truth_coordinates = np.multiply(np.array([1,1,-1]), ground_truth_coordinates)  # invert the z axis
+    # # Add the ground truth data
+    # pcd_gt = o3d.geometry.PointCloud()
+    # #ground_truth_coordinates.reverse()  # because we now read from last to first image
+    # ground_truth_coordinates = np.multiply(np.array([1,1,-1]), ground_truth_coordinates)  # invert the z axis
 
-    # Add the estimated coordinate origins
-    calibration = np.subtract(ground_truth_coordinates[0], coordinate_system_origins[-1][0:3])  # calculate the difference between the first two coordinates
-    ground_truth_coordinates_calibrated = np.subtract(ground_truth_coordinates, calibration)  # and use that to move the ground truth ever so slightly to align the first points
-    pcd_gt.points = o3d.utility.Vector3dVector(ground_truth_coordinates_calibrated)
+    # # Add the estimated coordinate origins
+    # calibration = np.subtract(ground_truth_coordinates[0], coordinate_system_origins[-1][0:3])  # calculate the difference between the first two coordinates
+    # ground_truth_coordinates_calibrated = np.subtract(ground_truth_coordinates, calibration)  # and use that to move the ground truth ever so slightly to align the first points
+    # pcd_gt.points = o3d.utility.Vector3dVector(ground_truth_coordinates_calibrated)
 
-    # Visualize the whole thing
-    pcd_gt.paint_uniform_color([0,1,0])  # paint it green
+    # # Visualize the whole thing
+    # pcd_gt.paint_uniform_color([0,1,0])  # paint it green
+
+
+    coord = np.load("/home/edu/university_coding_projects/NYCU_Perception/projection_launcher/screenshots/semantic_3d_pointcloud/point.npy") * 10000/255
+    views = [o3d.geometry.PointCloud()]
+    views[0].points = o3d.utility.Vector3dVector(coord)  # load the coordinates
+    semantics = np.load("/home/edu/university_coding_projects/NYCU_Perception/projection_launcher/screenshots/semantic_3d_pointcloud/color01.npy")
+    views[0].colors = o3d.utility.Vector3dVector(semantics)  # load the colors for semantics
 
     if remove_floor_and_ceiling:
         for v,_ in enumerate(views):
@@ -251,7 +258,7 @@ if __name__ == "__main__":
             colors = np.asarray(views[v].colors)
             marked_for_removal = list()
             for p in range(point_cloud.shape[0]):
-                if point_cloud[p][1] > 1.3 or point_cloud[p][1] < -0.7:  # if y-axis value > 1.3 (floor) or < -0.7 (ceiling)
+                if point_cloud[p][1] > 0.5 or point_cloud[p][1] < -1.2:  # if y-axis value > 1.3 (floor) or < -0.7 (ceiling)
                     marked_for_removal.append(p)
             point_cloud = np.delete(point_cloud, marked_for_removal, axis=0)
             colors = np.delete(colors, marked_for_removal, axis=0)
@@ -261,8 +268,8 @@ if __name__ == "__main__":
             pcd.colors = o3d.utility.Vector3dVector(colors)
             views[v] = pcd
     
-    plt.scatter(np.asarray(views[0].points).take(indices=0, axis=1), np.asarray(views[0].points).take(indices=2, axis=1))  # take x and z values to show them as 2d
+    plt.scatter(np.asarray(views[0].points).take(indices=0, axis=1), -1*np.asarray(views[0].points).take(indices=2, axis=1), c=np.asarray(views[0].colors), s=0.5)  # take x and z values to show them as 2d
     plt.show()
-    o3d.visualization.draw_geometries(views + [pcd_gt])
+    o3d.visualization.draw_geometries(views)
     print("DONE")
 
