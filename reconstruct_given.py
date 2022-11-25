@@ -9,6 +9,15 @@ import scipy.optimize
 from collections import Counter
 import matplotlib.colors
 import matplotlib.pyplot as plt
+from rrt import RRT, dijkstra, plot
+
+target_colors = {
+    "refrigerator": [255, 0, 0], 
+    "rack": [0, 255, 133], 
+    "cushion": [255, 9, 92], 
+    "lamp": [160, 150, 20], 
+    "cooktop": [7, 255, 224]
+}
 
 def clean_coordinates(points, threshold_length=0.46):  # 0.46 since its the absolute distance between steps (translation)
     points = np.array(points)  # convert to a numpy array
@@ -162,6 +171,41 @@ def local_icp_algorithm(source, target, source_fpfh, target_fpfh, voxel_size):
         o3d.pipelines.registration.TransformationEstimationPointToPlane())
     return result
 
+def navigate_to(points_2d, ziel, n_iter, obstacle_radius=0.5, stepSize=0.5):
+    global target_colors
+    target_color = np.divide(target_colors[ziel], 255)
+    x, y, colors = points_2d
+
+    startpos = (0.5, -5.75)
+
+    obstacles = list()
+    for i, c in enumerate(colors): 
+        if target_color[0] == c[0] and target_color[1] == c[1] and target_color[2] == c[2]:
+            t_x = x[i]
+            t_y = y[i]
+            print("Found target color, corresponding coordinates: {}, {}".format(t_x, t_y))
+            break
+        else:
+            if not (np.isclose(np.abs(x[i]), startpos[0]) or np.isclose(np.abs(x[i]), startpos[1])):  # this is to remove an obstacle near the start point
+                obstacles.append((x[i], y[i]))
+    
+    endpos = (t_x, t_y)
+    
+    G = RRT(startpos, endpos, obstacles, n_iter, obstacle_radius, stepSize)
+    
+    if G.success:
+        path = dijkstra(G)
+        print("Sucessfully found a path!")
+        print(path)
+        #plot(G, obstacles, 0.005, path)
+        return G, path
+    else:
+        print("No path was found!")
+        #plot(G, obstacles, radius)
+        return G, None
+
+
+
 if __name__ == "__main__":
 
     f = 256  # focal length
@@ -251,6 +295,7 @@ if __name__ == "__main__":
     views[0].points = o3d.utility.Vector3dVector(coord)  # load the coordinates
     semantics = np.load("/home/edu/university_coding_projects/NYCU_Perception/projection_launcher/screenshots/semantic_3d_pointcloud/color01.npy")
     views[0].colors = o3d.utility.Vector3dVector(semantics)  # load the colors for semantics
+    views[0] = custom_voxel_down(views[0], 0.1)
 
     if remove_floor_and_ceiling:
         for v,_ in enumerate(views):
@@ -268,8 +313,20 @@ if __name__ == "__main__":
             pcd.colors = o3d.utility.Vector3dVector(colors)
             views[v] = pcd
     
-    plt.scatter(np.asarray(views[0].points).take(indices=0, axis=1), -1*np.asarray(views[0].points).take(indices=2, axis=1), c=np.asarray(views[0].colors), s=0.5)  # take x and z values to show them as 2d
+    x = np.asarray(views[0].points).take(indices=0, axis=1)
+    y = -1*np.asarray(views[0].points).take(indices=2, axis=1)
+    plt.scatter(x, y, c=np.asarray(views[0].colors), s=1)  # take x (as x) and z (as y) values to show them as 2d
     plt.show()
     o3d.visualization.draw_geometries(views)
+
+    G, shortest_path = navigate_to([x[0:int(len(x)/2)], y[0:int(len(y)/2)], np.asarray(views[0].colors)[0:int(len(y)/2)]], "refrigerator", 500, obstacle_radius=1.2, stepSize=1)
+    px = [x for x, y in G.vertices]
+    py = [y for x, y in G.vertices]
+
+    plt.scatter(np.hstack((x, px)), np.hstack((y, py)), c=np.vstack((np.asarray(views[0].colors), np.ones((len(px), 3))*[1, 0, 0])), s=1)
+    plt.show()
+    
+
+
     print("DONE")
 
