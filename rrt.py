@@ -158,6 +158,9 @@ def RRT(startpos, endpos, obstacles, n_iter, radius, stepSize):  # RRT algorithm
 			continue
 
 		newvex = newVertex(randvex, nearvex, stepSize)
+		#if isInObstacle(newvex, obstacles, radius):
+		#	print("dont be stupid")
+		#	continue
 
 		newidx = G.add_vex(newvex)
 		print("Added vertex at {},{}".format(newvex[0], newvex[1]))

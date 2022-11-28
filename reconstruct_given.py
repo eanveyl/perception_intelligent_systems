@@ -10,6 +10,7 @@ from collections import Counter
 import matplotlib.colors
 import matplotlib.pyplot as plt
 from rrt import RRT, dijkstra, plot
+from matplotlib import collections  as mc
 
 target_colors = {
     "refrigerator": [255, 0, 0], 
@@ -184,7 +185,7 @@ def navigate_to(points_2d, ziel, n_iter, obstacle_radius=0.5, stepSize=0.5):
             t_x = x[i]
             t_y = y[i]
             print("Found target color, corresponding coordinates: {}, {}".format(t_x, t_y))
-            break
+            continue
         else:
             if not (np.isclose(np.abs(x[i]), startpos[0]) or np.isclose(np.abs(x[i]), startpos[1])):  # this is to remove an obstacle near the start point
                 obstacles.append((x[i], y[i]))
@@ -295,7 +296,7 @@ if __name__ == "__main__":
     views[0].points = o3d.utility.Vector3dVector(coord)  # load the coordinates
     semantics = np.load("/home/edu/university_coding_projects/NYCU_Perception/projection_launcher/screenshots/semantic_3d_pointcloud/color01.npy")
     views[0].colors = o3d.utility.Vector3dVector(semantics)  # load the colors for semantics
-    views[0] = custom_voxel_down(views[0], 0.1)
+    views[0] = custom_voxel_down(views[0], 0.25)
 
     if remove_floor_and_ceiling:
         for v,_ in enumerate(views):
@@ -318,12 +319,39 @@ if __name__ == "__main__":
     plt.scatter(x, y, c=np.asarray(views[0].colors), s=1)  # take x (as x) and z (as y) values to show them as 2d
     plt.show()
     o3d.visualization.draw_geometries(views)
+    rrt_obstacle_radius=0.18
+    rrt_step_size=2.5
 
-    G, shortest_path = navigate_to([x[0:int(len(x)/2)], y[0:int(len(y)/2)], np.asarray(views[0].colors)[0:int(len(y)/2)]], "refrigerator", 500, obstacle_radius=1.2, stepSize=1)
+    G, shortest_path = navigate_to([x, y, np.asarray(views[0].colors)], "refrigerator", 2200, obstacle_radius=rrt_obstacle_radius, stepSize=rrt_step_size)
     px = [x for x, y in G.vertices]
     py = [y for x, y in G.vertices]
 
-    plt.scatter(np.hstack((x, px)), np.hstack((y, py)), c=np.vstack((np.asarray(views[0].colors), np.ones((len(px), 3))*[1, 0, 0])), s=1)
+    #plt.scatter(np.hstack((x, px)), np.hstack((y, py)), c=np.vstack((np.asarray(views[0].colors), np.ones((len(px), 3))*[1, 0, 0])), s=1)
+    #plt.show()  # this plots the graph and the points without the lines connecting or connect radii
+
+    fig, ax = plt.subplots()
+
+    
+    ax.scatter(px, py, c='cyan')
+    ax.scatter(G.startpos[0], G.startpos[1], c='black')
+    ax.scatter(G.endpos[0], G.endpos[1], c='black')
+
+    lines = [(G.vertices[edge[0]], G.vertices[edge[1]]) for edge in G.edges]
+    lc = mc.LineCollection(lines, colors='green', linewidths=2)
+    ax.add_collection(lc)
+
+    if shortest_path is not None:  # draw the shortest path if possible
+        paths = [(shortest_path[i], shortest_path[i+1]) for i in range(len(shortest_path)-1)]
+        lc2 = mc.LineCollection(paths, colors='blue', linewidths=3)
+        ax.add_collection(lc2)
+
+    for i, obs in enumerate(zip(x, y)):
+        circle = plt.Circle(obs, rrt_obstacle_radius, color=np.asarray(views[0].colors)[i])
+        ax.add_artist(circle)
+    #ax.scatter(x, y, c=np.asarray(views[0].colors), s=1)
+    
+    #ax.autoscale()
+    #ax.margins(0.1)
     plt.show()
     
 
