@@ -9,6 +9,7 @@ from random import random
 import matplotlib.pyplot as plt
 from matplotlib import collections  as mc
 from collections import deque
+from tqdm import tqdm
 
 class Line():
 
@@ -82,7 +83,7 @@ def nearest(G, vex, obstacles, radius):
 def newVertex(randvex, nearvex, stepSize):
 	dirn = np.array(randvex) - np.array(nearvex)
 	length = np.linalg.norm(dirn)
-	dirn = (dirn / length) * min (stepSize, length)
+	dirn = (dirn / length) * stepSize#min (stepSize, length)
 
 	newvex = (nearvex[0]+dirn[0], nearvex[1]+dirn[1])
 	return newvex
@@ -137,18 +138,21 @@ class Graph:  # Define graph
 
 
 	def randomPosition(self):
-		rx = random()
-		ry = random()
+		# rx = random()
+		# ry = random()
 
-		posx = self.startpos[0] - (self.sx / 2.) + rx * self.sx * 2
-		posy = self.startpos[1] - (self.sy / 2.) + ry * self.sy * 2
+		# posx = self.startpos[0] - (self.sx / 2.) + rx * self.sx * 2
+		# posy = self.startpos[1] - (self.sy / 2.) + ry * self.sy * 2
+		my_generator = np.random.default_rng()
+		posx = my_generator.uniform(low=-4, high=6)
+		posy = my_generator.uniform(low=-10, high=5)
 		return posx, posy
 
 
 def RRT(startpos, endpos, obstacles, n_iter, radius, stepSize):  # RRT algorithm
 	G = Graph(startpos, endpos)
 
-	for _ in range(n_iter):
+	for _ in tqdm(range(n_iter)):
 		randvex = G.randomPosition()
 		if isInObstacle(randvex, obstacles, radius):
 			continue
@@ -311,7 +315,7 @@ if __name__ == '__main__':
 	obstacles = [(1,1)]
 	n_iter = 100
 	radius = 0.1
-	stepSize = 0.1
+	stepSize = 0.5
 	 
 	#G = RRT_star(startpos, endpos, obstacles, n_iter, radius, stepSize)
 	G = RRT(startpos, endpos, obstacles, n_iter, radius, stepSize)

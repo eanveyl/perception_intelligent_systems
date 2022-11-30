@@ -11,6 +11,8 @@ import matplotlib.colors
 import matplotlib.pyplot as plt
 from rrt import RRT, dijkstra, plot
 from matplotlib import collections  as mc
+from load import follow_path
+
 
 target_colors = {
     "refrigerator": [255, 0, 0], 
@@ -172,12 +174,12 @@ def local_icp_algorithm(source, target, source_fpfh, target_fpfh, voxel_size):
         o3d.pipelines.registration.TransformationEstimationPointToPlane())
     return result
 
-def navigate_to(points_2d, ziel, n_iter, obstacle_radius=0.5, stepSize=0.5):
+def navigate_to(points_2d, ziel: str, n_iter: int, startpos: tuple=(0,0), obstacle_radius: float=0.5, stepSize: float=0.5):
     global target_colors
     target_color = np.divide(target_colors[ziel], 255)
     x, y, colors = points_2d
 
-    startpos = (0.5, -5.75)
+    #startpos = (0.5, -5.75) #works(-2,-2)#works:(0,0)
 
     obstacles = list()
     for i, c in enumerate(colors): 
@@ -296,7 +298,7 @@ if __name__ == "__main__":
     views[0].points = o3d.utility.Vector3dVector(coord)  # load the coordinates
     semantics = np.load("/home/edu/university_coding_projects/NYCU_Perception/projection_launcher/screenshots/semantic_3d_pointcloud/color01.npy")
     views[0].colors = o3d.utility.Vector3dVector(semantics)  # load the colors for semantics
-    views[0] = custom_voxel_down(views[0], 0.25)
+    views[0] = custom_voxel_down(views[0], 0.1)
 
     if remove_floor_and_ceiling:
         for v,_ in enumerate(views):
@@ -319,19 +321,19 @@ if __name__ == "__main__":
     plt.scatter(x, y, c=np.asarray(views[0].colors), s=1)  # take x (as x) and z (as y) values to show them as 2d
     plt.show()
     o3d.visualization.draw_geometries(views)
-    rrt_obstacle_radius=0.18
-    rrt_step_size=2.5
+    rrt_obstacle_radius = 0.075
+    rrt_step_size = 0.5
+    startpos = (0,0) #(-2,-2)#works:(0,0)#not working (0.5, -5.75)
 
-    G, shortest_path = navigate_to([x, y, np.asarray(views[0].colors)], "refrigerator", 2200, obstacle_radius=rrt_obstacle_radius, stepSize=rrt_step_size)
+    G, shortest_path = navigate_to([x, y, np.asarray(views[0].colors)], "refrigerator", 500, startpos, obstacle_radius=rrt_obstacle_radius, stepSize=rrt_step_size)
     px = [x for x, y in G.vertices]
     py = [y for x, y in G.vertices]
 
-    #plt.scatter(np.hstack((x, px)), np.hstack((y, py)), c=np.vstack((np.asarray(views[0].colors), np.ones((len(px), 3))*[1, 0, 0])), s=1)
-    #plt.show()  # this plots the graph and the points without the lines connecting or connect radii
+    # #plt.scatter(np.hstack((x, px)), np.hstack((y, py)), c=np.vstack((np.asarray(views[0].colors), np.ones((len(px), 3))*[1, 0, 0])), s=1)
+    # #plt.show()  # this plots the graph and the points without the lines connecting or connect radii
 
     fig, ax = plt.subplots()
 
-    
     ax.scatter(px, py, c='cyan')
     ax.scatter(G.startpos[0], G.startpos[1], c='black')
     ax.scatter(G.endpos[0], G.endpos[1], c='black')
@@ -353,8 +355,10 @@ if __name__ == "__main__":
     #ax.autoscale()
     #ax.margins(0.1)
     plt.show()
+
+    # Homework 3 - Task 3 
+    if shortest_path is not None: 
+        follow_path(shortest_path, startpos)
     
-
-
     print("DONE")
 
