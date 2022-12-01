@@ -184,33 +184,47 @@ def follow_path(path: list, start_pos: tuple):
             theta = np.arcsin((x1-x0)/r)
             phi = np.arcsin(-(y1-y0)/r)
 
-            #theta -= heading
-            #phi += heading
+            theta -= heading
+            phi += heading
 
-            if theta > 0 and phi > 0:
+            if (-np.pi/2 < np.arcsin((x1-x0)/r) < 0) and (-np.pi/2 < np.arcsin(-(y1-y0)/r) < 0):  # next point is
+                #... in the first quadrant (with view pointing up ) and both arcsin are actually pointing in exactly opposite
+                #... directions to what they actually should.
+                theta_corr = - (np.pi + np.arcsin((x1-x0)/r)) - heading  # bend it in the right direction
+                if (-2*np.pi < theta_corr < -(3/2)*np.pi):
+                    theta_corr = 2*np.pi + theta_corr
+                phi_corr = - (np.pi + np.arcsin(-(y1-y0)/r)) + heading  # bend it in the right direction
+
+                theta = theta_corr
+                phi = phi_corr 
+
+            #if 0 < theta < np.pi/2 and  0 < phi < np.pi/2:
+            if (0 < theta < np.pi or  -2*np.pi < theta < -np.pi) and (0 < phi < np.pi or -2*np.pi < phi < -np.pi):
                 # turn right, target ahead
                 steer = theta
-                steer = steer - heading  # subtract the heading we had from previous steps (if any)
+                #steer = steer - heading  # subtract the heading we had from previous steps (if any)
                 order = "turn_right"
                 n_turns = int(np.floor(steer/rot_step_size))
-            elif theta < 0 and phi > 0: 
+            elif -np.pi/2 < theta < 0 and np.pi/2 < phi < np.pi: 
                 # turn left, target ahead
                 steer = theta
-                steer = steer - heading  # subtract the heading we had from previous steps (if any)
+                #steer = steer - heading  # subtract the heading we had from previous steps (if any)
                 order = "turn_left"
-                n_turns = int(np.floor(steer/rot_step_size))  # floor for negative numbers will round to the smaller integer!
-            elif theta > 0 and phi < 0: 
+                n_turns = int(np.abs(np.floor(steer/rot_step_size)))  # floor for negative numbers will round to the smaller integer!
+            #elif np.pi/2 < theta < np.pi and -np.pi/2 < phi < 0: 
+            elif 0 < theta < np.pi and -np.pi/2 < phi < 0:
                 # turn right, target behind
-                steer = np.pi - theta
-                steer = steer - heading  # subtract the heading we had from previous steps (if any)
+                steer = np.pi/2 - phi
+                #steer = steer - heading  # subtract the heading we had from previous steps (if any)
                 order = "turn_right"
                 n_turns = int(np.floor(steer/rot_step_size))
-            elif theta < 0 and phi < 0: 
+            #elif -np.pi < theta < -np.pi/2 and (3/4)*np.pi < phi < 2*np.pi:
+            elif -np.pi < theta < 0 and (3/2)*np.pi < phi < 2*np.pi:
                 # turn left, target behind
-                steer = -np.pi - theta
-                steer = steer - heading  # subtract the heading we had from previous steps (if any)
+                steer = -np.pi/2 + phi
+                #steer = steer - heading  # subtract the heading we had from previous steps (if any)
                 order = "turn_left"
-                n_turns = int(np.floor(steer/rot_step_size))  # floor for negative numbers will round to the smaller integer!
+                n_turns = int(np.abs(np.floor(steer/rot_step_size)))  # floor for negative numbers will round to the smaller integer!
             else:
                 assert(False, "Ähm...")  # don't know yet what should happen here. TODO Probably just move one step forward
 
@@ -223,7 +237,7 @@ def follow_path(path: list, start_pos: tuple):
             for _ in range(n_forward_steps):
                 x_cur, _, y_cur, _, _, ry, _ = navigateAndSee(order, save_semantic_and_depth=False)  # move forward steps
 
-            heading = -2*ry  # invert because we count right as positive heading
+            heading = -2*ry #% 2*np.pi # invert because we count right as positive heading
             x0 = x_cur  # retrieve ground truth information
             y0 = y_cur
 
