@@ -217,13 +217,18 @@ def follow_path(path: list, start_pos: tuple):
 
             for _ in range(n_turns):
                 x_cur, _, y_cur, _, _, ry, _ = navigateAndSee(order, save_semantic_and_depth=False)
+            
+            if order == "turn_left":  # we track our heading after turning cause this shitty simulator does not even give the bearing correctly.
+                heading += rot_step_size*n_turns
+            else:
+                heading -= rot_step_size*n_turns
 
             n_forward_steps = int(np.floor(r/fwd_step_size))  # check how many steps forward we need to do
             order = "move_forward"
             for _ in range(n_forward_steps):
                 x_cur, _, y_cur, _, _, ry, _ = navigateAndSee(order, save_semantic_and_depth=False)  # move forward steps
 
-            heading = 2*ry
+            #heading = 2*ry
             x0 = x_cur  # retrieve ground truth information
             y0 = -y_cur  # invert y because we don't like weird axes
 
@@ -305,8 +310,8 @@ def follow_path(path: list, start_pos: tuple):
     
 
 if __name__ == "__main__":  # this runs if the file is executed directly
-    follow_path([(0,0), (1,1), (2,1.2), (1.95, 2.75), (3.175, 1.88), (2.175, 1.55), (1.236, 0.90), (-0.23, -0.55), (-1.657, -2.66),
-    (-1.498, -5.22), (0,389, -5.26)], (0,0))
+    follow_path([(0,0), (1,1), (2,1.2), (1.95, 2.75), (2.73, 1.88), (2.175, 1.55), (1.236, 0.90), (-0.23, -0.55), (-1.657, -2.66),
+    (-1.498, -5.22), (0.389, -5.26)], (0,0))  #           ook   -----> problem
 
     # cfg = make_simple_cfg(sim_settings)
     # sim = habitat_sim.Simulator(cfg)
