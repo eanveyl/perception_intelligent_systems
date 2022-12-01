@@ -25,6 +25,24 @@ sim_settings = {
     "sensor_pitch": 0,  # sensor pitch (x rotation in rads)
 }
 
+def unit_vector(vector):
+    """ Returns the unit vector of the vector.  """
+    return vector / np.linalg.norm(vector)
+
+def angle_between(v1, v2):
+    """ Returns the angle in radians between vectors 'v1' and 'v2'::
+
+            >>> angle_between((1, 0, 0), (0, 1, 0))
+            1.5707963267948966
+            >>> angle_between((1, 0, 0), (1, 0, 0))
+            0.0
+            >>> angle_between((1, 0, 0), (-1, 0, 0))
+            3.141592653589793
+    """
+    v1_u = unit_vector(v1)
+    v2_u = unit_vector(v2)
+    return np.arccos(np.clip(np.dot(v1_u, v2_u), -1.0, 1.0))
+
 # This function generates a config for the simulator.
 # It contains two parts:
 # one for the simulator backend
@@ -155,10 +173,10 @@ def follow_path(path: list, start_pos: tuple):
     cfg = make_simple_cfg(sim_settings)
     sim = habitat_sim.Simulator(cfg)
     
-    inverted_path = list()
-    for i,p in enumerate(path): 
-        inverted_path.append((p[0], -1*p[1]))  # flip the y values around since the simulator uses the other direction in coordinate system
-    path = inverted_path
+    # inverted_path = list()
+    # for i,p in enumerate(path): 
+    #     inverted_path.append((p[0], -1*p[1]))  # flip the y values around since the simulator uses the other direction in coordinate system
+    # path = inverted_path
 
     # initialize an agent
     agent = sim.initialize_agent(sim_settings["default_agent"])
@@ -178,57 +196,25 @@ def follow_path(path: list, start_pos: tuple):
     for i, p in enumerate(path):
         if i==0:
             continue  # skip the first iteration, since it has the starting position
-        for _ in range(fine_tune_iterations):  
+        for _ in range(fine_tune_iterations):
             x1, y1 = p
             r = np.sqrt((x1-x0)**2 + (y1-y0)**2)
-            theta = np.arcsin((x1-x0)/r)
-            phi = np.arcsin(-(y1-y0)/r)
 
-            theta -= heading
-            phi += heading
+            # translate the coordinate system to origin
+            x1 = x1 - x0
+            y1 = y1 - y0
+            x0 = 0
+            y0 = 0
 
-            if (-np.pi/2 < np.arcsin((x1-x0)/r) < 0) and (-np.pi/2 < np.arcsin(-(y1-y0)/r) < 0):  # next point is
-                #... in the first quadrant (with view pointing up ) and both arcsin are actually pointing in exactly opposite
-                #... directions to what they actually should.
-                theta_corr = - (np.pi + np.arcsin((x1-x0)/r)) - heading  # bend it in the right direction
-                if (-2*np.pi < theta_corr < -(3/2)*np.pi):
-                    theta_corr = 2*np.pi + theta_corr
-                phi_corr = - (np.pi + np.arcsin(-(y1-y0)/r)) + heading  # bend it in the right direction
+            # create a unit vector with the current heading
+            heading_ref_x = heading + np.pi/2
+            heading_vector = (np.cos(heading_ref_x), np.sin(heading_ref_x))
 
-                theta = theta_corr
-                phi = phi_corr 
+            # calculate the angle difference between the two vectors 
+            theta = angle_between(heading_vector, (x1, y1))
+            order = "turn_left" if np.cross(heading_vector, (x1, y1)) > 0 else "turn_right"
+            n_turns = int(np.floor(theta/rot_step_size))
 
-            #if 0 < theta < np.pi/2 and  0 < phi < np.pi/2:
-            if (0 < theta < np.pi or  -2*np.pi < theta < -np.pi) and (0 < phi < np.pi or -2*np.pi < phi < -np.pi):
-                # turn right, target ahead
-                steer = theta
-                #steer = steer - heading  # subtract the heading we had from previous steps (if any)
-                order = "turn_right"
-                n_turns = int(np.floor(steer/rot_step_size))
-            elif -np.pi/2 < theta < 0 and np.pi/2 < phi < np.pi: 
-                # turn left, target ahead
-                steer = theta
-                #steer = steer - heading  # subtract the heading we had from previous steps (if any)
-                order = "turn_left"
-                n_turns = int(np.abs(np.floor(steer/rot_step_size)))  # floor for negative numbers will round to the smaller integer!
-            #elif np.pi/2 < theta < np.pi and -np.pi/2 < phi < 0: 
-            elif 0 < theta < np.pi and -np.pi/2 < phi < 0:
-                # turn right, target behind
-                steer = np.pi/2 - phi
-                #steer = steer - heading  # subtract the heading we had from previous steps (if any)
-                order = "turn_right"
-                n_turns = int(np.floor(steer/rot_step_size))
-            #elif -np.pi < theta < -np.pi/2 and (3/4)*np.pi < phi < 2*np.pi:
-            elif -np.pi < theta < 0 and (3/2)*np.pi < phi < 2*np.pi:
-                # turn left, target behind
-                steer = -np.pi/2 + phi
-                #steer = steer - heading  # subtract the heading we had from previous steps (if any)
-                order = "turn_left"
-                n_turns = int(np.abs(np.floor(steer/rot_step_size)))  # floor for negative numbers will round to the smaller integer!
-            else:
-                assert(False, "Ähm...")  # don't know yet what should happen here. TODO Probably just move one step forward
-
-            
             for _ in range(n_turns):
                 x_cur, _, y_cur, _, _, ry, _ = navigateAndSee(order, save_semantic_and_depth=False)
 
@@ -237,16 +223,85 @@ def follow_path(path: list, start_pos: tuple):
             for _ in range(n_forward_steps):
                 x_cur, _, y_cur, _, _, ry, _ = navigateAndSee(order, save_semantic_and_depth=False)  # move forward steps
 
-            heading = -2*ry #% 2*np.pi # invert because we count right as positive heading
+            heading = 2*ry
             x0 = x_cur  # retrieve ground truth information
-            y0 = y_cur
+            y0 = -y_cur  # invert y because we don't like weird axes
 
-            if np.sqrt((x1-x0)**2 + (y1-y0)**2) < fwd_step_size:  # if we are close enough (less than one step away) to our checkpoint
-                print("Checkpoint {},{} reached with enough accuracy.".format(x1,y1))
+            if np.sqrt((p[0]-x0)**2 + (p[1]-y0)**2) < fwd_step_size:  # if we are close enough (less than one step away) to our checkpoint
+                print("Checkpoint {},{} reached with enough accuracy.".format(p[0],p[1]))
                 break  # go to the next checkpoint 
             else:
-                print("Checkpoint {},{} not reached with enough accuracy. Attempting a correction.".format(x1,y1))
+                print("Checkpoint {},{} not reached with enough accuracy. Attempting a correction.".format(p[0],p[1]))
                 # ... otherwise we will do another "fine-tuning" round
+
+            # x1, y1 = p
+            # r = np.sqrt((x1-x0)**2 + (y1-y0)**2)
+            # theta = np.arcsin((x1-x0)/r)
+            # phi = np.arcsin(-(y1-y0)/r)
+
+            # theta -= heading
+            # phi += heading
+
+            # if (-np.pi/2 < np.arcsin((x1-x0)/r) < 0) and (-np.pi/2 < np.arcsin(-(y1-y0)/r) < 0):  # next point is
+            #     #... in the first quadrant (with view pointing up ) and both arcsin are actually pointing in exactly opposite
+            #     #... directions to what they actually should.
+            #     theta_corr = - (np.pi + np.arcsin((x1-x0)/r)) - heading  # bend it in the right direction
+            #     if (-2*np.pi < theta_corr < -(3/2)*np.pi):
+            #         theta_corr = 2*np.pi + theta_corr
+            #     phi_corr = - (np.pi + np.arcsin(-(y1-y0)/r)) + heading  # bend it in the right direction
+
+            #     theta = theta_corr
+            #     phi = phi_corr 
+
+            # #if 0 < theta < np.pi/2 and  0 < phi < np.pi/2:
+            # if (0 < theta < np.pi or  -2*np.pi < theta < -np.pi) and (0 < phi < np.pi or -2*np.pi < phi < -np.pi):
+            #     # turn right, target ahead
+            #     steer = theta
+            #     #steer = steer - heading  # subtract the heading we had from previous steps (if any)
+            #     order = "turn_right"
+            #     n_turns = int(np.floor(steer/rot_step_size))
+            # elif -np.pi/2 < theta < 0 and np.pi/2 < phi < np.pi: 
+            #     # turn left, target ahead
+            #     steer = theta
+            #     #steer = steer - heading  # subtract the heading we had from previous steps (if any)
+            #     order = "turn_left"
+            #     n_turns = int(np.abs(np.floor(steer/rot_step_size)))  # floor for negative numbers will round to the smaller integer!
+            # #elif np.pi/2 < theta < np.pi and -np.pi/2 < phi < 0: 
+            # elif 0 < theta < np.pi and -np.pi/2 < phi < 0:
+            #     # turn right, target behind
+            #     steer = np.pi/2 - phi
+            #     #steer = steer - heading  # subtract the heading we had from previous steps (if any)
+            #     order = "turn_right"
+            #     n_turns = int(np.floor(steer/rot_step_size))
+            # #elif -np.pi < theta < -np.pi/2 and (3/4)*np.pi < phi < 2*np.pi:
+            # elif -np.pi < theta < 0 and (3/2)*np.pi < phi < 2*np.pi:
+            #     # turn left, target behind
+            #     steer = -np.pi/2 + phi
+            #     #steer = steer - heading  # subtract the heading we had from previous steps (if any)
+            #     order = "turn_left"
+            #     n_turns = int(np.abs(np.floor(steer/rot_step_size)))  # floor for negative numbers will round to the smaller integer!
+            # else:
+            #     assert(False, "Ähm...")  # don't know yet what should happen here. TODO Probably just move one step forward
+
+            
+            # for _ in range(n_turns):
+            #     x_cur, _, y_cur, _, _, ry, _ = navigateAndSee(order, save_semantic_and_depth=False)
+
+            # n_forward_steps = int(np.floor(r/fwd_step_size))  # check how many steps forward we need to do
+            # order = "move_forward"
+            # for _ in range(n_forward_steps):
+            #     x_cur, _, y_cur, _, _, ry, _ = navigateAndSee(order, save_semantic_and_depth=False)  # move forward steps
+
+            # heading = -2*ry #% 2*np.pi # invert because we count right as positive heading
+            # x0 = x_cur  # retrieve ground truth information
+            # y0 = y_cur
+
+            # if np.sqrt((x1-x0)**2 + (y1-y0)**2) < fwd_step_size:  # if we are close enough (less than one step away) to our checkpoint
+            #     print("Checkpoint {},{} reached with enough accuracy.".format(x1,y1))
+            #     break  # go to the next checkpoint 
+            # else:
+            #     print("Checkpoint {},{} not reached with enough accuracy. Attempting a correction.".format(x1,y1))
+            #     # ... otherwise we will do another "fine-tuning" round
     
 
 if __name__ == "__main__":  # this runs if the file is executed directly
