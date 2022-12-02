@@ -12,6 +12,7 @@ import matplotlib.pyplot as plt
 from rrt import RRT, dijkstra, plot
 from matplotlib import collections  as mc
 from load import follow_path
+from tqdm import tqdm
 
 
 target_colors = {
@@ -91,6 +92,9 @@ def match_orientation(source_vector, target_vector, method=None):
     sol = scipy.optimize.minimize(alignment_loss_function, x0=np.random.rand(6,1), args=(source_vector, target_vector), method=method)
     print(sol)
     return sol
+
+def distance(x, y):
+	return np.linalg.norm(np.array(x) - np.array(y))
 
 def depth_image_to_point_cloud(path_depth, path_rgb, f, axis_displacement):
     img_depth = cv2.imread(path_depth)
@@ -186,14 +190,61 @@ def navigate_to(points_2d, ziel: str, n_iter: int, startpos: tuple=(0,0), obstac
         if target_color[0] == c[0] and target_color[1] == c[1] and target_color[2] == c[2]:
             t_x = x[i]
             t_y = y[i]
-            print("Found target color, corresponding coordinates: {}, {}".format(t_x, t_y))
             continue
         else:
             if not (np.isclose(np.abs(x[i]), startpos[0]) or np.isclose(np.abs(x[i]), startpos[1])):  # this is to remove an obstacle near the start point
                 obstacles.append((x[i], y[i]))
     
+    print("Found target color, corresponding coordinates: {}, {}".format(t_x, t_y))
     endpos = (t_x, t_y)
     
+    # do a rasterization of 2d space
+    x_range = (-4, 7)  # start, end
+    y_range = (-10, 3)  # start, end
+    sampling_distance = round(obstacle_radius*2, 1)  # -> e.g. 0.075*2 = 0.15 -> 0.1 # round to the nearest tenth
+    print("Rasterize sampling distance={}".format(sampling_distance))
+    raster_size_x = int(x_range[1] - x_range[0] / sampling_distance)
+    raster_size_y = int(y_range[1] - y_range[0] / sampling_distance)
+    raster = np.empty((raster_size_y, raster_size_x), dtype=bool)
+    # for y_it in tqdm(range(raster_size_y)):
+    #     for x_it in range(raster_size_x):
+    #         # note that the sampling distance/2 is equivalent to the radius of a circle that would fit inside the square
+    #         center_of_square = (x_range[0] + (x_it+1)*sampling_distance/2, y_range[0] + (y_it+1)*sampling_distance/2)
+    #         #distances_to_curr_point = np.array([np.linalg.norm(np.array(center_of_square) - np.array(obstacle)) for obstacle in obstacles])
+    #         distances_to_curr_point = np.linalg.norm(np.array(center_of_square)-np.array(obstacles), axis=1)
+    #         # note that sqrt(2)/2 * sampling distance is the radius of a circle that reaches the corners of the square. 
+    #         # this is done to prevent points escaping the scan if they lie near the corner of the grid
+    #         #np.where(distances_to_curr_point < (np.sqrt(2)/2)*sampling_distance, True, False)  # mark true for the indices
+    #         if distances_to_curr_point[distances_to_curr_point < (np.sqrt(2)/2)*sampling_distance].size > 0:
+    #             # if we found some points that lie within our current search radius (meaning inside our square)
+    #             raster[y_it, x_it] = True  # we have an obstacle
+    #         else:
+    #             raster[y_it, x_it] = False
+    
+
+    # from sklearn.cluster import DBSCAN
+    # model = DBSCAN(eps=0.18)
+    # yhat = model.fit_predict(obstacles)
+    # clusters = np.unique(yhat)
+    # for cluster in clusters:
+    #     # get row indexes for samples with this cluster
+    #     row_ix = np.where(yhat == cluster)
+    #     # create scatter of these samples
+    #     plt.scatter(np.take(obstacles, row_ix, axis = 0)[0][:,0], np.take(obstacles, row_ix, axis = 0)[0][:,1])
+    # # show the plot
+    # plt.show()
+
+    # model.fit()
+
+    # # try to convert to alpha shape 
+    # import alphashape
+    # from descartes import PolygonPatch
+
+    # alpha_shape = alphashape.alphashape(np.take(obstacles, np.where(yhat == clusters[0]), axis = 0)[0], 2.0)
+    # fig, ax = plt.subplots()
+    # ax.add_patch(PolygonPatch(alpha_shape, alpha=0.2))
+    # plt.show()
+
     G = RRT(startpos, endpos, obstacles, n_iter, obstacle_radius, stepSize)
     
     if G.success:
@@ -323,9 +374,9 @@ if __name__ == "__main__":
     o3d.visualization.draw_geometries(views)
     rrt_obstacle_radius = 0.075
     rrt_step_size = 0.5
-    startpos = (0,0) #(-2,-2)#works:(0,0)#not working (0.5, -5.75)
+    startpos = (0.5, -5.75) #notworking(2,-8)#works(-2,-2)#works:(0,0)#not working (0.5, -5.75)
 
-    G, shortest_path = navigate_to([x, y, np.asarray(views[0].colors)], "refrigerator", 500, startpos, obstacle_radius=rrt_obstacle_radius, stepSize=rrt_step_size)
+    G, shortest_path = navigate_to([x, y, np.asarray(views[0].colors)], "refrigerator", 2500, startpos, obstacle_radius=rrt_obstacle_radius, stepSize=rrt_step_size)
     px = [x for x, y in G.vertices]
     py = [y for x, y in G.vertices]
 

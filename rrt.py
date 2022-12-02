@@ -48,10 +48,19 @@ def distance(x, y):
 
 
 def isInObstacle(vex, obstacles, radius):
-	for obs in obstacles:
-		if distance(obs, vex) < radius:
-			return True
-	return False
+	# for obs in obstacles:
+	# 	if distance(obs, vex) < radius:
+	# 		return True
+	# return False
+	distances_to_curr_point = np.linalg.norm(np.array(vex)-np.array(obstacles), axis=1)
+	# note that sqrt(2)/2 * sampling distance is the radius of a circle that reaches the corners of the square. 
+	# this is done to prevent points escaping the scan if they lie near the corner of the grid
+	#np.where(distances_to_curr_point < (np.sqrt(2)/2)*sampling_distance, True, False)  # mark true for the indices
+	if distances_to_curr_point[distances_to_curr_point < radius].size > 0:
+	# if we found some points that lie within our current search radius (meaning inside our square)
+		return True  # we have an obstacle
+	else:
+		return False
 
 
 def isThruObstacle(line, obstacles, radius):
@@ -61,23 +70,40 @@ def isThruObstacle(line, obstacles, radius):
 	return False
 
 
-def nearest(G, vex, obstacles, radius):
+def nearest(G, vex, obstacles, radius, stepSize):
 	Nvex = None
 	Nidx = None
 	minDist = float("inf")
 
-	for idx, v in enumerate(G.vertices):
-		line = Line(v, vex)
-		if isThruObstacle(line, obstacles, radius):
+	distances_to_curr_point = np.linalg.norm(np.array(vex)-np.array(G.vertices), axis=1)
+	vertices_sorted_by_ascending_distance = np.argsort(distances_to_curr_point)
+
+	#for idx, v in enumerate(G.vertices):
+	for idx in vertices_sorted_by_ascending_distance:
+		v = G.vertices[idx]
+		#line = Line(v, vex)
+		#if isThruObstacle(line, obstacles, radius):
+		#	continue
+		
+		invalid_node = False  # initialize default value
+		for i in range(1, int(np.ceil(stepSize/(2*radius)))):
+			dirn = (np.array(vex)-np.array(v))
+			test_point = v + (dirn/np.linalg.norm(dirn)) * (2*radius*i)  # this is a point in the direction of vex, with a distance of 
+			if isInObstacle(test_point, obstacles, radius):
+				invalid_node = True
+				break
+		if invalid_node:
 			continue
 
-		dist = distance(v, vex)
-		if dist < minDist:
-			minDist = dist
-			Nidx = idx
-			Nvex = v
+		return v, idx
+		# dist = distance(v, vex)
+		# if dist < minDist:
+		# 	minDist = dist
+		# 	Nidx = idx
+		# 	Nvex = v
 
-	return Nvex, Nidx
+	#return Nvex, Nidx
+	
 
 
 def newVertex(randvex, nearvex, stepSize):
@@ -144,7 +170,7 @@ class Graph:  # Define graph
 		# posx = self.startpos[0] - (self.sx / 2.) + rx * self.sx * 2
 		# posy = self.startpos[1] - (self.sy / 2.) + ry * self.sy * 2
 		my_generator = np.random.default_rng()
-		posx = my_generator.uniform(low=-4, high=6)
+		posx = my_generator.uniform(low=-3, high=6)
 		posy = my_generator.uniform(low=-10, high=5)
 		return posx, posy
 
@@ -157,7 +183,7 @@ def RRT(startpos, endpos, obstacles, n_iter, radius, stepSize):  # RRT algorithm
 		if isInObstacle(randvex, obstacles, radius):
 			continue
 
-		nearvex, nearidx = nearest(G, randvex, obstacles, radius)  # this checks at the same time if the 
+		nearvex, nearidx = nearest(G, randvex, obstacles, radius, stepSize)  # this checks at the same time if the 
 		# potential nearest vertex and the random vertex can be connected with a line without hitting any 
 		# obstacles...
 		if nearvex is None:
@@ -167,12 +193,12 @@ def RRT(startpos, endpos, obstacles, n_iter, radius, stepSize):  # RRT algorithm
 		# the new vertex collides with something else.
 
 		newidx = G.add_vex(newvex)
-		print("Added vertex at {},{}".format(newvex[0], newvex[1]))
+		#print("Added vertex at {},{}".format(newvex[0], newvex[1]))
 		dist = distance(newvex, nearvex)
 		G.add_edge(newidx, nearidx, dist)
 
 		dist = distance(newvex, G.endpos)
-		if dist < 2 * radius:
+		if dist < 3 * radius:  # changed from 2 to add a little bit of god's hand
 			endidx = G.add_vex(G.endpos)
 			G.add_edge(newidx, endidx, dist)
 			G.success = True
