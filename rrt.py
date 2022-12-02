@@ -157,14 +157,14 @@ def RRT(startpos, endpos, obstacles, n_iter, radius, stepSize):  # RRT algorithm
 		if isInObstacle(randvex, obstacles, radius):
 			continue
 
-		nearvex, nearidx = nearest(G, randvex, obstacles, radius)
+		nearvex, nearidx = nearest(G, randvex, obstacles, radius)  # this checks at the same time if the 
+		# potential nearest vertex and the random vertex can be connected with a line without hitting any 
+		# obstacles...
 		if nearvex is None:
 			continue
 
-		newvex = newVertex(randvex, nearvex, stepSize)
-		#if isInObstacle(newvex, obstacles, radius):
-		#	print("dont be stupid")
-		#	continue
+		newvex = newVertex(randvex, nearvex, stepSize)  # ... that's why we don't need to check here if 
+		# the new vertex collides with something else.
 
 		newidx = G.add_vex(newvex)
 		print("Added vertex at {},{}".format(newvex[0], newvex[1]))

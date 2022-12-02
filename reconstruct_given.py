@@ -174,7 +174,7 @@ def local_icp_algorithm(source, target, source_fpfh, target_fpfh, voxel_size):
         o3d.pipelines.registration.TransformationEstimationPointToPlane())
     return result
 
-def navigate_to(points_2d, ziel: str, n_iter: int, startpos: tuple=(0,0), obstacle_radius: float=0.5, stepSize: float=0.5):
+def navigate_to(points_2d, ziel: str, n_iter: int, startpos: tuple=(0,0), obstacle_radius: float=0.5, stepSize: float=0.5, discretize_map: bool=False):
     global target_colors
     target_color = np.divide(target_colors[ziel], 255)
     x, y, colors = points_2d
@@ -292,7 +292,7 @@ if __name__ == "__main__":
     # # Visualize the whole thing
     # pcd_gt.paint_uniform_color([0,1,0])  # paint it green
 
-
+    # This part is for loading a *given* point cloud and using it for navigation.
     coord = np.load("/home/edu/university_coding_projects/NYCU_Perception/projection_launcher/screenshots/semantic_3d_pointcloud/point.npy") * 10000/255
     views = [o3d.geometry.PointCloud()]
     views[0].points = o3d.utility.Vector3dVector(coord)  # load the coordinates

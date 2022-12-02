@@ -239,136 +239,68 @@ def follow_path(path: list, start_pos: tuple):
                 print("Checkpoint {},{} not reached with enough accuracy. Attempting a correction.".format(p[0],p[1]))
                 # ... otherwise we will do another "fine-tuning" round
 
-            # x1, y1 = p
-            # r = np.sqrt((x1-x0)**2 + (y1-y0)**2)
-            # theta = np.arcsin((x1-x0)/r)
-            # phi = np.arcsin(-(y1-y0)/r)
-
-            # theta -= heading
-            # phi += heading
-
-            # if (-np.pi/2 < np.arcsin((x1-x0)/r) < 0) and (-np.pi/2 < np.arcsin(-(y1-y0)/r) < 0):  # next point is
-            #     #... in the first quadrant (with view pointing up ) and both arcsin are actually pointing in exactly opposite
-            #     #... directions to what they actually should.
-            #     theta_corr = - (np.pi + np.arcsin((x1-x0)/r)) - heading  # bend it in the right direction
-            #     if (-2*np.pi < theta_corr < -(3/2)*np.pi):
-            #         theta_corr = 2*np.pi + theta_corr
-            #     phi_corr = - (np.pi + np.arcsin(-(y1-y0)/r)) + heading  # bend it in the right direction
-
-            #     theta = theta_corr
-            #     phi = phi_corr 
-
-            # #if 0 < theta < np.pi/2 and  0 < phi < np.pi/2:
-            # if (0 < theta < np.pi or  -2*np.pi < theta < -np.pi) and (0 < phi < np.pi or -2*np.pi < phi < -np.pi):
-            #     # turn right, target ahead
-            #     steer = theta
-            #     #steer = steer - heading  # subtract the heading we had from previous steps (if any)
-            #     order = "turn_right"
-            #     n_turns = int(np.floor(steer/rot_step_size))
-            # elif -np.pi/2 < theta < 0 and np.pi/2 < phi < np.pi: 
-            #     # turn left, target ahead
-            #     steer = theta
-            #     #steer = steer - heading  # subtract the heading we had from previous steps (if any)
-            #     order = "turn_left"
-            #     n_turns = int(np.abs(np.floor(steer/rot_step_size)))  # floor for negative numbers will round to the smaller integer!
-            # #elif np.pi/2 < theta < np.pi and -np.pi/2 < phi < 0: 
-            # elif 0 < theta < np.pi and -np.pi/2 < phi < 0:
-            #     # turn right, target behind
-            #     steer = np.pi/2 - phi
-            #     #steer = steer - heading  # subtract the heading we had from previous steps (if any)
-            #     order = "turn_right"
-            #     n_turns = int(np.floor(steer/rot_step_size))
-            # #elif -np.pi < theta < -np.pi/2 and (3/4)*np.pi < phi < 2*np.pi:
-            # elif -np.pi < theta < 0 and (3/2)*np.pi < phi < 2*np.pi:
-            #     # turn left, target behind
-            #     steer = -np.pi/2 + phi
-            #     #steer = steer - heading  # subtract the heading we had from previous steps (if any)
-            #     order = "turn_left"
-            #     n_turns = int(np.abs(np.floor(steer/rot_step_size)))  # floor for negative numbers will round to the smaller integer!
-            # else:
-            #     assert(False, "Ähm...")  # don't know yet what should happen here. TODO Probably just move one step forward
-
             
-            # for _ in range(n_turns):
-            #     x_cur, _, y_cur, _, _, ry, _ = navigateAndSee(order, save_semantic_and_depth=False)
-
-            # n_forward_steps = int(np.floor(r/fwd_step_size))  # check how many steps forward we need to do
-            # order = "move_forward"
-            # for _ in range(n_forward_steps):
-            #     x_cur, _, y_cur, _, _, ry, _ = navigateAndSee(order, save_semantic_and_depth=False)  # move forward steps
-
-            # heading = -2*ry #% 2*np.pi # invert because we count right as positive heading
-            # x0 = x_cur  # retrieve ground truth information
-            # y0 = y_cur
-
-            # if np.sqrt((x1-x0)**2 + (y1-y0)**2) < fwd_step_size:  # if we are close enough (less than one step away) to our checkpoint
-            #     print("Checkpoint {},{} reached with enough accuracy.".format(x1,y1))
-            #     break  # go to the next checkpoint 
-            # else:
-            #     print("Checkpoint {},{} not reached with enough accuracy. Attempting a correction.".format(x1,y1))
-            #     # ... otherwise we will do another "fine-tuning" round
-    
 
 if __name__ == "__main__":  # this runs if the file is executed directly
-    follow_path([(0,0), (1,1), (2,1.2), (1.95, 2.75), (2.73, 1.88), (2.175, 1.55), (1.236, 0.90), (-0.23, -0.55), (-1.657, -2.66),
-    (-1.498, -5.22), (0.389, -5.26)], (0,0))  #           ook   -----> problem
+    # follow_path([(0,0), (1,1), (2,1.2), (1.95, 2.75), (2.73, 1.88), (2.175, 1.55), (1.236, 0.90), (-0.23, -0.55), (-1.657, -2.66),
+    # (-1.498, -5.22), (0.389, -5.26)], (0,0))
 
-    # cfg = make_simple_cfg(sim_settings)
-    # sim = habitat_sim.Simulator(cfg)
+    cfg = make_simple_cfg(sim_settings)
+    sim = habitat_sim.Simulator(cfg)
 
-    # # initialize an agent
-    # agent = sim.initialize_agent(sim_settings["default_agent"])
+    # initialize an agent
+    agent = sim.initialize_agent(sim_settings["default_agent"])
 
-    # # Set agent state
-    # agent_state = habitat_sim.AgentState()
-    # agent_state.position = np.array([0.0, 0, 0.0])  # agent in world space
-    # agent.set_state(agent_state)
+    # Set agent state
+    agent_state = habitat_sim.AgentState()
+    agent_state.position = np.array([0.0, 0, 0.0])  # agent in world space
+    agent.set_state(agent_state)
 
-    # # obtain the default, discrete actions that an agent can perform
-    # # default action space contains 3 actions: move_forward, turn_left, and turn_right
+    # obtain the default, discrete actions that an agent can perform
+    # default action space contains 3 actions: move_forward, turn_left, and turn_right
     
-    # action_names = list(cfg.agents[sim_settings["default_agent"]].action_space.keys())
-    # print("Discrete action space: ", action_names)
+    action_names = list(cfg.agents[sim_settings["default_agent"]].action_space.keys())
+    print("Discrete action space: ", action_names)
 
-    # FORWARD_KEY="w"
-    # LEFT_KEY="a"
-    # RIGHT_KEY="d"
-    # FINISH="f"
-    # SAVE_IMG="v"
-    # print("#############################")
-    # print("use keyboard to control the agent")
-    # print(" w for go forward  ")
-    # print(" a for turn left  ")
-    # print(" d for trun right  ")
-    # print(" f for finish and quit the program")
-    # print(" v for saving the current RGB view as an image")
-    # print("#############################")
+    FORWARD_KEY="w"
+    LEFT_KEY="a"
+    RIGHT_KEY="d"
+    FINISH="f"
+    SAVE_IMG="v"
+    print("#############################")
+    print("use keyboard to control the agent")
+    print(" w for go forward  ")
+    print(" a for turn left  ")
+    print(" d for trun right  ")
+    print(" f for finish and quit the program")
+    print(" v for saving the current RGB view as an image")
+    print("#############################")
 
-    # observations = None  # define observations as a variable outside the navigateAndSee function, to facilitate saving an image
+    observations = None  # define observations as a variable outside the navigateAndSee function, to facilitate saving an image
     
-    # action = "move_forward"
-    # navigateAndSee(action)
+    action = "move_forward"
+    navigateAndSee(action)
 
-    # while True:
-    #     keystroke = cv2.waitKey(0)
-    #     if keystroke == ord(FORWARD_KEY):
-    #         action = "move_forward"
-    #         navigateAndSee(action)
-    #         print("action: FORWARD")
-    #     elif keystroke == ord(LEFT_KEY):
-    #         action = "turn_left"
-    #         navigateAndSee(action)
-    #         print("action: LEFT")
-    #     elif keystroke == ord(RIGHT_KEY):
-    #         action = "turn_right"
-    #         navigateAndSee(action)
-    #         print("action: RIGHT")
-    #     elif keystroke == ord(FINISH):
-    #         print("action: FINISH")
-    #         break
-    #     elif keystroke == ord(SAVE_IMG):
-    #         print("action: SAVE IMAGE")
-    #         save_img()
-    #     else:
-    #         print("INVALID KEY")
-    #         continue
+    while True:
+        keystroke = cv2.waitKey(0)
+        if keystroke == ord(FORWARD_KEY):
+            action = "move_forward"
+            navigateAndSee(action)
+            print("action: FORWARD")
+        elif keystroke == ord(LEFT_KEY):
+            action = "turn_left"
+            navigateAndSee(action)
+            print("action: LEFT")
+        elif keystroke == ord(RIGHT_KEY):
+            action = "turn_right"
+            navigateAndSee(action)
+            print("action: RIGHT")
+        elif keystroke == ord(FINISH):
+            print("action: FINISH")
+            break
+        elif keystroke == ord(SAVE_IMG):
+            print("action: SAVE IMAGE")
+            save_img()
+        else:
+            print("INVALID KEY")
+            continue
