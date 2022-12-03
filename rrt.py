@@ -2,6 +2,8 @@
 MIT License
 Copyright (c) 2019 Fanjin Zeng
 This work is licensed under the terms of the MIT license, see <https://opensource.org/licenses/MIT>.
+
+Modified by Eduardo Nunez for Perception and Decision Making for higher efficiency and execution speed.
 '''
 
 import numpy as np
@@ -11,47 +13,12 @@ from matplotlib import collections  as mc
 from collections import deque
 from tqdm import tqdm
 
-class Line():
-
-	def __init__(self, p0, p1):
-		self.p = np.array(p0)
-		self.dirn = np.array(p1) - np.array(p0)
-		self.dist = np.linalg.norm(self.dirn)
-		self.dirn /= self.dist # normalize
-
-	def path(self, t):
-		return self.p + t * self.dirn
-
-
-def Intersection(line, center, radius):  # Check line-sphere (circle) intersection
-
-	a = np.dot(line.dirn, line.dirn)
-	b = 2 * np.dot(line.dirn, line.p - center)
-	c = np.dot(line.p - center, line.p - center) - radius * radius
-
-	discriminant = b * b - 4 * a * c
-	if discriminant < 0:
-		return False
-
-	t1 = (-b + np.sqrt(discriminant)) / (2 * a)
-	t2 = (-b - np.sqrt(discriminant)) / (2 * a)
-
-	if (t1 < 0 and t2 < 0) or (t1 > line.dist and t2 > line.dist):
-		return False
-
-	return True
-
-
 
 def distance(x, y):
 	return np.linalg.norm(np.array(x) - np.array(y))
 
 
 def isInObstacle(vex, obstacles, radius):
-	# for obs in obstacles:
-	# 	if distance(obs, vex) < radius:
-	# 		return True
-	# return False
 	distances_to_curr_point = np.linalg.norm(np.array(vex)-np.array(obstacles), axis=1)
 	# note that sqrt(2)/2 * sampling distance is the radius of a circle that reaches the corners of the square. 
 	# this is done to prevent points escaping the scan if they lie near the corner of the grid
@@ -61,13 +28,6 @@ def isInObstacle(vex, obstacles, radius):
 		return True  # we have an obstacle
 	else:
 		return False
-
-
-def isThruObstacle(line, obstacles, radius):
-	for obs in obstacles:
-		if Intersection(line, obs, radius):
-			return True
-	return False
 
 
 def nearest(G, vex, obstacles, radius, stepSize):
@@ -81,9 +41,6 @@ def nearest(G, vex, obstacles, radius, stepSize):
 	#for idx, v in enumerate(G.vertices):
 	for idx in vertices_sorted_by_ascending_distance:
 		v = G.vertices[idx]
-		#line = Line(v, vex)
-		#if isThruObstacle(line, obstacles, radius):
-		#	continue
 		
 		invalid_node = False  # initialize default value
 		for i in range(1, int(np.ceil(stepSize/(2*radius)))):
@@ -103,7 +60,6 @@ def nearest(G, vex, obstacles, radius, stepSize):
 		# 	Nvex = v
 
 	#return Nvex, Nidx
-	
 
 
 def newVertex(randvex, nearvex, stepSize):
@@ -207,59 +163,6 @@ def RRT(startpos, endpos, obstacles, n_iter, radius, stepSize):  # RRT algorithm
 	return G
 
 
-def RRT_star(startpos, endpos, obstacles, n_iter, radius, stepSize):  # RRT star algorithm
-	G = Graph(startpos, endpos)
-
-	for _ in range(n_iter):
-		randvex = G.randomPosition()
-		if isInObstacle(randvex, obstacles, radius):  # reject if the random point is inside an obstacle
-			continue
-
-		nearvex, nearidx = nearest(G, randvex, obstacles, radius)  # find the nearest node to connect to
-		if nearvex is None:
-			continue
-
-		newvex = newVertex(randvex, nearvex, stepSize)
-
-		newidx = G.add_vex(newvex)
-		dist = distance(newvex, nearvex)
-		G.add_edge(newidx, nearidx, dist)
-		G.distances[newidx] = G.distances[nearidx] + dist
-
-		# update nearby vertices distance (if shorter)
-		for vex in G.vertices:
-			if vex == newvex:
-				continue
-
-			dist = distance(vex, newvex)
-			if dist > radius:
-				continue
-
-			line = Line(vex, newvex)
-			if isThruObstacle(line, obstacles, radius):
-				continue
-
-			idx = G.vex2idx[vex]
-			if G.distances[newidx] + dist < G.distances[idx]:
-				G.add_edge(idx, newidx, dist)
-				G.distances[idx] = G.distances[newidx] + dist
-
-		dist = distance(newvex, G.endpos)
-		if dist < 2 * radius:
-			endidx = G.add_vex(G.endpos)
-			G.add_edge(newidx, endidx, dist)
-			try:
-				G.distances[endidx] = min(G.distances[endidx], G.distances[newidx]+dist)
-			except:
-				G.distances[endidx] = G.distances[newidx]+dist
-
-			G.success = True
-			#print('success')
-			# break
-	return G
-
-
-
 def dijkstra(G):  # Dijkstra algorithm for finding shortest path from start position to end.
 	srcIdx = G.vex2idx[G.startpos]
 	dstIdx = G.vex2idx[G.endpos]
@@ -292,7 +195,6 @@ def dijkstra(G):  # Dijkstra algorithm for finding shortest path from start posi
 	return list(path)
 
 
-
 def plot(G, obstacles, radius, path=None):  # Plot RRT, obstacles and shortest path
 	px = [x for x, y in G.vertices]
 	py = [y for x, y in G.vertices]
@@ -320,22 +222,7 @@ def plot(G, obstacles, radius, path=None):  # Plot RRT, obstacles and shortest p
 	plt.show()
 
 
-def pathSearch(startpos, endpos, obstacles, n_iter, radius, stepSize):
-	G = RRT_star(startpos, endpos, obstacles, n_iter, radius, stepSize)
-	if G.success:
-		path = dijkstra(G)
-		# plot(G, obstacles, radius, path)
-		return path
-
-
-if __name__ == '__main__':
-	# startpos = (0., 0.)
-	# endpos = (5., 5.)
-	# obstacles = [(1., 1.), (2., 2.)]
-	# n_iter = 200
-	# radius = 0.5
-	# stepSize = 0.7
-
+if __name__ == '__main__':  # this is the demo
 	startpos = (0,0)
 	endpos = (0.35, -1.55)
 	obstacles = [(1,1)]
@@ -343,7 +230,6 @@ if __name__ == '__main__':
 	radius = 0.1
 	stepSize = 0.5
 	 
-	#G = RRT_star(startpos, endpos, obstacles, n_iter, radius, stepSize)
 	G = RRT(startpos, endpos, obstacles, n_iter, radius, stepSize)
 
 	if G.success:

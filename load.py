@@ -172,11 +172,6 @@ def follow_path(path: list, start_pos: tuple):
     global agent
     cfg = make_simple_cfg(sim_settings)
     sim = habitat_sim.Simulator(cfg)
-    
-    # inverted_path = list()
-    # for i,p in enumerate(path): 
-    #     inverted_path.append((p[0], -1*p[1]))  # flip the y values around since the simulator uses the other direction in coordinate system
-    # path = inverted_path
 
     # initialize an agent
     agent = sim.initialize_agent(sim_settings["default_agent"])
@@ -185,8 +180,9 @@ def follow_path(path: list, start_pos: tuple):
     agent_state = habitat_sim.AgentState()
     agent_state.position = np.array([float(start_pos[0]), 0, -float(start_pos[1])])  # agent in world space
     agent.set_state(agent_state)
-    
     action_names = list(cfg.agents[sim_settings["default_agent"]].action_space.keys())
+
+    # Create configuration parameters for the navigation algorithm
     rot_step_size = 0.08715573698282242*2
     fwd_step_size = 0.25
     fine_tune_iterations = 5
@@ -228,7 +224,6 @@ def follow_path(path: list, start_pos: tuple):
             for _ in range(n_forward_steps):
                 x_cur, _, y_cur, _, _, ry, _ = navigateAndSee(order, save_semantic_and_depth=False)  # move forward steps
 
-            #heading = 2*ry
             x0 = x_cur  # retrieve ground truth information
             y0 = -y_cur  # invert y because we don't like weird axes
 
@@ -261,7 +256,6 @@ if __name__ == "__main__":  # this runs if the file is executed directly
 
     # obtain the default, discrete actions that an agent can perform
     # default action space contains 3 actions: move_forward, turn_left, and turn_right
-    
     action_names = list(cfg.agents[sim_settings["default_agent"]].action_space.keys())
     print("Discrete action space: ", action_names)
 

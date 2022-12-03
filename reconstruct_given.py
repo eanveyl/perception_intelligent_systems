@@ -198,150 +198,22 @@ def navigate_to(points_2d, ziel: str, n_iter: int, startpos: tuple=(0,0), obstac
     print("Found target color, corresponding coordinates: {}, {}".format(t_x, t_y))
     endpos = (t_x, t_y)
     
-    # do a rasterization of 2d space
-    x_range = (-4, 7)  # start, end
-    y_range = (-10, 3)  # start, end
-    sampling_distance = round(obstacle_radius*2, 1)  # -> e.g. 0.075*2 = 0.15 -> 0.1 # round to the nearest tenth
-    print("Rasterize sampling distance={}".format(sampling_distance))
-    raster_size_x = int(x_range[1] - x_range[0] / sampling_distance)
-    raster_size_y = int(y_range[1] - y_range[0] / sampling_distance)
-    raster = np.empty((raster_size_y, raster_size_x), dtype=bool)
-    # for y_it in tqdm(range(raster_size_y)):
-    #     for x_it in range(raster_size_x):
-    #         # note that the sampling distance/2 is equivalent to the radius of a circle that would fit inside the square
-    #         center_of_square = (x_range[0] + (x_it+1)*sampling_distance/2, y_range[0] + (y_it+1)*sampling_distance/2)
-    #         #distances_to_curr_point = np.array([np.linalg.norm(np.array(center_of_square) - np.array(obstacle)) for obstacle in obstacles])
-    #         distances_to_curr_point = np.linalg.norm(np.array(center_of_square)-np.array(obstacles), axis=1)
-    #         # note that sqrt(2)/2 * sampling distance is the radius of a circle that reaches the corners of the square. 
-    #         # this is done to prevent points escaping the scan if they lie near the corner of the grid
-    #         #np.where(distances_to_curr_point < (np.sqrt(2)/2)*sampling_distance, True, False)  # mark true for the indices
-    #         if distances_to_curr_point[distances_to_curr_point < (np.sqrt(2)/2)*sampling_distance].size > 0:
-    #             # if we found some points that lie within our current search radius (meaning inside our square)
-    #             raster[y_it, x_it] = True  # we have an obstacle
-    #         else:
-    #             raster[y_it, x_it] = False
-    
-
-    # from sklearn.cluster import DBSCAN
-    # model = DBSCAN(eps=0.18)
-    # yhat = model.fit_predict(obstacles)
-    # clusters = np.unique(yhat)
-    # for cluster in clusters:
-    #     # get row indexes for samples with this cluster
-    #     row_ix = np.where(yhat == cluster)
-    #     # create scatter of these samples
-    #     plt.scatter(np.take(obstacles, row_ix, axis = 0)[0][:,0], np.take(obstacles, row_ix, axis = 0)[0][:,1])
-    # # show the plot
-    # plt.show()
-
-    # model.fit()
-
-    # # try to convert to alpha shape 
-    # import alphashape
-    # from descartes import PolygonPatch
-
-    # alpha_shape = alphashape.alphashape(np.take(obstacles, np.where(yhat == clusters[0]), axis = 0)[0], 2.0)
-    # fig, ax = plt.subplots()
-    # ax.add_patch(PolygonPatch(alpha_shape, alpha=0.2))
-    # plt.show()
-
     G = RRT(startpos, endpos, obstacles, n_iter, obstacle_radius, stepSize)
     
     if G.success:
         path = dijkstra(G)
         print("Sucessfully found a path!")
         print(path)
-        #plot(G, obstacles, 0.005, path)
         return G, path
     else:
         print("No path was found!")
-        #plot(G, obstacles, radius)
         return G, None
 
 
 
 if __name__ == "__main__":
-
-    f = 256  # focal length
-    axis_displacement = 256
-
     views = list()
-    transformation_matrices = list()
-
     remove_floor_and_ceiling = True
-    
-    # This part is used to import views generated autonomously within the global view
-    highest_image_number = 30
-    # paths_to_depth_images = list()
-    # paths_to_rgb_images = list()
-    # for i in range(highest_image_number+1):
-    #     paths_to_depth_images.append("/automated_views/automated_front_depth_view" + str(i) + ".png")
-    #     paths_to_rgb_images.append("/automated_views/automated_front_rgb_view" + str(i) + ".png")
-    # print("Loaded following images:" + str(paths_to_depth_images))
-    # paths_to_depth_images.reverse()
-
-    # with open('screenshots/automated_views/ground_truth.txt') as f_gt:
-    #     lines = f_gt.readlines()
-    # ground_truth_coordinates = list()
-    # for l in lines: 
-    #     l.strip()  # remove the newline
-    #     x_gt, y_gt, z_gt = l.split()
-    #     ground_truth_coordinates.append([float(x_gt), float(y_gt), float(z_gt)])
-
-    # coordinate_system_origins = list()
-    # for i in range(len(paths_to_depth_images)):
-    #     tic = time.time()  # used to measure loop execution time
-
-    #     if i+1 == len(paths_to_depth_images):
-    #         for n in range(len(views)):
-    #             views[n] = views[n].transform(transformation_matrices[i-1])  # TODO not sure if I should have this for-loop here
-    #         break
-        
-    #     pcd1 = depth_image_to_point_cloud("screenshots" + paths_to_depth_images[i], "screenshots" + paths_to_rgb_images[i], f, axis_displacement)
-    #     pcd2 = depth_image_to_point_cloud("screenshots" + paths_to_depth_images[i+1], "screenshots" + paths_to_rgb_images[i+1], f, axis_displacement)
-    #     print("Processing images: " + str(paths_to_depth_images[i]) + " , " + str(paths_to_depth_images[i+1]))
-
-    #     voxel_size = 0.1   # 10cm #0.05  # 5cm
-    #     source_down, source_fpfh = preprocess_point_cloud(pcd1, voxel_size, majority_voting_downsampling=False)
-    #     target_down, target_fpfh = preprocess_point_cloud(pcd2, voxel_size, majority_voting_downsampling=False)
-
-    #     result_ransac = execute_global_registration(source_down, target_down, source_fpfh, target_fpfh, voxel_size)
-    #     print("Global registration=" + str(result_ransac))
-    #     #draw_registration_result(source_down, target_down, result_ransac.transformation)
-
-    #     result_icp = local_icp_algorithm(source_down, target_down, source_fpfh, target_fpfh, voxel_size)
-    #     print("ICP result=" + str(result_icp))
-    #     #draw_registration_result(source_down, target_down, result_icp.transformation)
-    #     print(result_icp.transformation)
-
-    #     if transformation_matrices:  # if i >= 1
-    #         for n in range(len(views)):
-    #             views[n] = views[n].transform(transformation_matrices[i-1])  # transform all previous views to the new coordinate system to daisychain all point clouds together
-    #             coordinate_system_origins[n] = transformation_matrices[i-1]@coordinate_system_origins[n]
-
-    #     source_down.points.append([0, 0, 0])
-    #     source_down.colors.append([1, 0, 0])
-
-    #     coordinate_system_origins.append([0,0,0,1])
-    #     views.append(copy.deepcopy(source_down))
-    #     transformation_matrices.append(result_icp.transformation)  # save the latest transformation matrix, which will be used in the next iteration
-        
-    #     print("Finished iteration #" + str(i) + "/" + str(len(paths_to_depth_images)-1) + " - Total progress=" + str(int(i/(len(paths_to_depth_images)-2)*100)) + "%")
-    #     print("Iteration time [s]=" + str(time.time() - tic))
-
-
-    # # Add the ground truth data
-    # pcd_gt = o3d.geometry.PointCloud()
-    # #ground_truth_coordinates.reverse()  # because we now read from last to first image
-    # ground_truth_coordinates = np.multiply(np.array([1,1,-1]), ground_truth_coordinates)  # invert the z axis
-
-    # # Add the estimated coordinate origins
-    # calibration = np.subtract(ground_truth_coordinates[0], coordinate_system_origins[-1][0:3])  # calculate the difference between the first two coordinates
-    # ground_truth_coordinates_calibrated = np.subtract(ground_truth_coordinates, calibration)  # and use that to move the ground truth ever so slightly to align the first points
-    # pcd_gt.points = o3d.utility.Vector3dVector(ground_truth_coordinates_calibrated)
-
-    # # Visualize the whole thing
-    # pcd_gt.paint_uniform_color([0,1,0])  # paint it green
 
     # This part is for loading a *given* point cloud and using it for navigation.
     coord = np.load("/home/edu/university_coding_projects/NYCU_Perception/projection_launcher/screenshots/semantic_3d_pointcloud/point.npy") * 10000/255
@@ -349,8 +221,9 @@ if __name__ == "__main__":
     views[0].points = o3d.utility.Vector3dVector(coord)  # load the coordinates
     semantics = np.load("/home/edu/university_coding_projects/NYCU_Perception/projection_launcher/screenshots/semantic_3d_pointcloud/color01.npy")
     views[0].colors = o3d.utility.Vector3dVector(semantics)  # load the colors for semantics
-    views[0] = custom_voxel_down(views[0], 0.1)
+    views[0] = custom_voxel_down(views[0], 0.1)  # do a small downsampling to increase performance
 
+    # Task 1: Remove floor and ceiling
     if remove_floor_and_ceiling:
         for v,_ in enumerate(views):
             point_cloud = np.asarray(views[v].points)
@@ -367,49 +240,54 @@ if __name__ == "__main__":
             pcd.colors = o3d.utility.Vector3dVector(colors)
             views[v] = pcd
     
+    # Task 1: create 2D view of the apartment, top-down
     x = np.asarray(views[0].points).take(indices=0, axis=1)
     y = -1*np.asarray(views[0].points).take(indices=2, axis=1)
     plt.scatter(x, y, c=np.asarray(views[0].colors), s=1)  # take x (as x) and z (as y) values to show them as 2d
     plt.show()
+
+    # Show the 3D model just for fun too
     o3d.visualization.draw_geometries(views)
+
+    # Task 2: RRT Algorithm in the 2D view
     rrt_obstacle_radius = 0.075
     rrt_step_size = 0.5
     startpos = (0.5, -5.75) #notworking(2,-8)#works(-2,-2)#works:(0,0)#not working (0.5, -5.75)
+    target = "refrigerator"
 
-    G, shortest_path = navigate_to([x, y, np.asarray(views[0].colors)], "refrigerator", 2500, startpos, obstacle_radius=rrt_obstacle_radius, stepSize=rrt_step_size)
+    # Execute the RRT algorithm here
+    G, shortest_path = navigate_to([x, y, np.asarray(views[0].colors)], target, 2500, startpos, obstacle_radius=rrt_obstacle_radius, stepSize=rrt_step_size)
+
+    # Retrieve created graph nodes
     px = [x for x, y in G.vertices]
     py = [y for x, y in G.vertices]
 
-    # #plt.scatter(np.hstack((x, px)), np.hstack((y, py)), c=np.vstack((np.asarray(views[0].colors), np.ones((len(px), 3))*[1, 0, 0])), s=1)
-    # #plt.show()  # this plots the graph and the points without the lines connecting or connect radii
-
+    # And plot them along the rest of the 2D world
     fig, ax = plt.subplots()
-
-    ax.scatter(px, py, c='cyan')
-    ax.scatter(G.startpos[0], G.startpos[1], c='black')
+    ax.scatter(px, py, c='cyan')  # add normal graph nodes in cyan color
+    ax.scatter(G.startpos[0], G.startpos[1], c='black')  # starting and ending points as black dots
     ax.scatter(G.endpos[0], G.endpos[1], c='black')
 
     lines = [(G.vertices[edge[0]], G.vertices[edge[1]]) for edge in G.edges]
-    lc = mc.LineCollection(lines, colors='green', linewidths=2)
+    lc = mc.LineCollection(lines, colors='green', linewidths=2)  # connecting normal graph nodes in green
     ax.add_collection(lc)
 
     if shortest_path is not None:  # draw the shortest path if possible
         paths = [(shortest_path[i], shortest_path[i+1]) for i in range(len(shortest_path)-1)]
-        lc2 = mc.LineCollection(paths, colors='blue', linewidths=3)
+        lc2 = mc.LineCollection(paths, colors='blue', linewidths=3)  # draw lines along optimal path in blue
         ax.add_collection(lc2)
 
     for i, obs in enumerate(zip(x, y)):
-        circle = plt.Circle(obs, rrt_obstacle_radius, color=np.asarray(views[0].colors)[i])
+        circle = plt.Circle(obs, rrt_obstacle_radius, color=np.asarray(views[0].colors)[i]) # and add the obstacles from 2D view
         ax.add_artist(circle)
-    #ax.scatter(x, y, c=np.asarray(views[0].colors), s=1)
     
-    #ax.autoscale()
-    #ax.margins(0.1)
     plt.show()
 
     # Homework 3 - Task 3 
     if shortest_path is not None: 
         follow_path(shortest_path, startpos)
+    else: 
+        print("Oops... No path was found! Can't follow path.")
     
     print("DONE")
 
