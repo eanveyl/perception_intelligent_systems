@@ -63,7 +63,7 @@ def transform_semantic(semantic_obs):
     semantic_img = cv2.cvtColor(np.asarray(semantic_img), cv2.COLOR_RGB2BGR)
     return semantic_img
 
-def navigateAndSee(action="", save_semantic_and_depth=True):
+def navigateAndSee(action="", save_semantic_and_depth=True, headless=False):
     if action in action_names:
         global observations  # define observations as a variable outside the navigateAndSee function, to facilitate saving an image
         global sim
@@ -71,10 +71,11 @@ def navigateAndSee(action="", save_semantic_and_depth=True):
         observations = sim.step(action)
         #print("action: ", action)
 
-        cv2.imshow("depth", transform_depth(observations["depth_sensor"]))
-        cv2.imshow("semantic", transform_semantic(observations["semantic_sensor"]))
-        cv2.imshow("RGB front view", transform_rgb_bgr(observations["color_sensor"]))
-        cv2.imshow("RGB top down", transform_rgb_bgr(observations["color_sensor2"]))
+        if not headless:
+            cv2.imshow("depth", transform_depth(observations["depth_sensor"]))
+            cv2.imshow("semantic", transform_semantic(observations["semantic_sensor"]))
+            cv2.imshow("RGB front view", transform_rgb_bgr(observations["color_sensor"]))
+            cv2.imshow("RGB top down", transform_rgb_bgr(observations["color_sensor2"]))
 
         agent_state = agent.get_state()
         sensor_state = agent_state.sensor_states['color_sensor']
@@ -212,7 +213,7 @@ def follow_path(path: list, start_pos: tuple):
             n_turns = int(np.floor(theta/rot_step_size))
 
             for _ in range(n_turns):
-                x_cur, _, y_cur, _, _, ry, _ = navigateAndSee(order, save_semantic_and_depth=False)
+                x_cur, _, y_cur, _, _, ry, _ = navigateAndSee(order, save_semantic_and_depth=False, headless=True)
             
             if order == "turn_left":  # we track our heading after turning cause this shitty simulator does not even give the bearing correctly.
                 heading += rot_step_size*n_turns
@@ -222,7 +223,7 @@ def follow_path(path: list, start_pos: tuple):
             n_forward_steps = int(np.floor(r/fwd_step_size))  # check how many steps forward we need to do
             order = "move_forward"
             for _ in range(n_forward_steps):
-                x_cur, _, y_cur, _, _, ry, _ = navigateAndSee(order, save_semantic_and_depth=False)  # move forward steps
+                x_cur, _, y_cur, _, _, ry, _ = navigateAndSee(order, save_semantic_and_depth=False, headless=True)  # move forward steps
 
             x0 = x_cur  # retrieve ground truth information
             y0 = -y_cur  # invert y because we don't like weird axes
@@ -240,8 +241,6 @@ if __name__ == "__main__":  # this runs if the file is executed directly
     # follow_path([(0,0), (1,1), (2,1.2), (1.95, 2.75), (2.73, 1.88), (2.175, 1.55), (1.236, 0.90), (-0.23, -0.55), (-1.657, -2.66),
     # (-1.498, -5.22), (0.389, -5.26)], (0,0))
     #follow_path([(0.5, -5.75), (0.7123671183061513, -5.297340959371912), (0.7062391509998651, -4.797378512765476), (0.24209662657959063, -4.611443801039089), (-0.25749993416292494, -4.591362055740188), (-0.7422610425901475, -4.713863760856528), (-1.177196190751588, -4.960504018912235), (-1.4673458444784, -4.553302375445253), (-1.5025504994204322, -4.054543283026466), (-1.5952917221694594, -3.563219494061373), (-1.5398196278025449, -3.0663061749135077), (-1.6208933467888589, -2.5729229039266124), (-1.7136976512441242, -2.0816110263228094), (-1.7351647402907033, -1.582072074800642), (-1.7218358459376957, -1.0822497657994066), (-1.3230803201124044, -0.7805975975264179), (-0.9688909573569388, -0.42768132514601714), (-0.46972300351834617, -0.4565145327475432), (-0.1673706841961582, -0.05828962769953688), (-0.09666842499006874, 0.4366863217597828), (0.3548702877769723, 0.6514252117463979), (0.7695681236607166, 0.37209439548485634), (1.2195545194580544, 0.1541213613789798), (1.6966148419613984, 0.0044101437197634485), (1.6698971503798177, 0.020830342220286634)], (0.5, -5.75))
-
-
 
     cfg = make_simple_cfg(sim_settings)
     sim = habitat_sim.Simulator(cfg)

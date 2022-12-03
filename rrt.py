@@ -20,25 +20,16 @@ def distance(x, y):
 
 def isInObstacle(vex, obstacles, radius):
 	distances_to_curr_point = np.linalg.norm(np.array(vex)-np.array(obstacles), axis=1)
-	# note that sqrt(2)/2 * sampling distance is the radius of a circle that reaches the corners of the square. 
-	# this is done to prevent points escaping the scan if they lie near the corner of the grid
-	#np.where(distances_to_curr_point < (np.sqrt(2)/2)*sampling_distance, True, False)  # mark true for the indices
 	if distances_to_curr_point[distances_to_curr_point < radius].size > 0:
-	# if we found some points that lie within our current search radius (meaning inside our square)
 		return True  # we have an obstacle
 	else:
 		return False
 
 
 def nearest(G, vex, obstacles, radius, stepSize):
-	Nvex = None
-	Nidx = None
-	minDist = float("inf")
-
 	distances_to_curr_point = np.linalg.norm(np.array(vex)-np.array(G.vertices), axis=1)
 	vertices_sorted_by_ascending_distance = np.argsort(distances_to_curr_point)
 
-	#for idx, v in enumerate(G.vertices):
 	for idx in vertices_sorted_by_ascending_distance:
 		v = G.vertices[idx]
 		
@@ -53,13 +44,6 @@ def nearest(G, vex, obstacles, radius, stepSize):
 			continue
 
 		return v, idx
-		# dist = distance(v, vex)
-		# if dist < minDist:
-		# 	minDist = dist
-		# 	Nidx = idx
-		# 	Nvex = v
-
-	#return Nvex, Nidx
 
 
 def newVertex(randvex, nearvex, stepSize):
