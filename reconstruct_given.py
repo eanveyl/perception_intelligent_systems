@@ -3,7 +3,7 @@ import open3d as o3d
 from collections import Counter
 import matplotlib.colors
 import matplotlib.pyplot as plt
-from rrt import RRT, dijkstra
+from rrt import RRT, dijkstra, RRT_star
 from matplotlib import collections  as mc
 from load import follow_path
 
@@ -57,6 +57,7 @@ def navigate_to(points_2d, ziel: str, n_iter: int, startpos: tuple=(0,0), obstac
     endpos = target_colors_coords[ziel]
     print("Found target object " + str(ziel) + ", corresponding coordinates: " + str(endpos))
     
+    #G = RRT_star(startpos, endpos, obstacles, n_iter, obstacle_radius, stepSize)
     G = RRT(startpos, endpos, obstacles, n_iter, obstacle_radius, stepSize)
     
     if G.success:
@@ -110,8 +111,8 @@ if __name__ == "__main__":
     # Task 2: RRT Algorithm in the 2D view
     rrt_obstacle_radius = 0.1#0.075
     rrt_step_size = 0.5
-    startpos = (0.5, -5.75) #notworking(2,-8)#works(-2,-2)#works:(0,0)#not working (0.5, -5.75)
-    target = "lamp" #works"rack" #works"cushion" #works"cooktop" #"#works"refrigerator"
+    startpos = (0,0)#(0.5, -5.75) #notworking(2,-8)#works(-2,-2)#works:(0,0)#not working (0.5, -5.75)
+    target = "cushion" #works"rack" #works"cushion" #works"cooktop" #"#works"refrigerator"
 
     # Execute the RRT algorithm here
     G, shortest_path = navigate_to([x, y, np.asarray(views[0].colors)], target, 5500, startpos, obstacle_radius=rrt_obstacle_radius, stepSize=rrt_step_size)

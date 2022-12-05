@@ -14,9 +14,41 @@ from collections import deque
 from tqdm import tqdm
 
 
+class Line():
+	def __init__(self, p0, p1):
+		self.p = np.array(p0)
+		self.dirn = np.array(p1) - np.array(p0)
+		self.dist = np.linalg.norm(self.dirn)
+		self.dirn /= self.dist # normalize
+
+	def path(self, t):
+		return self.p + t * self.dirn
+
+def Intersection(line, center, radius):
+	a = np.dot(line.dirn, line.dirn)
+	b = 2 * np.dot(line.dirn, line.p - center)
+	c = np.dot(line.p - center, line.p - center) - radius * radius
+
+	discriminant = b * b - 4 * a * c
+	if discriminant < 0:
+		return False
+
+	t1 = (-b + np.sqrt(discriminant)) / (2 * a);
+	t2 = (-b - np.sqrt(discriminant)) / (2 * a);
+
+	if (t1 < 0 and t2 < 0) or (t1 > line.dist and t2 > line.dist):
+		return False
+
+	return True
+
 def distance(x, y):
 	return np.linalg.norm(np.array(x) - np.array(y))
 
+def isThruObstacle(line, obstacles, radius):
+	for obs in obstacles:
+		if Intersection(line, obs, radius):
+			return True
+	return False
 
 def isInObstacle(vex, obstacles, radius):
 	distances_to_curr_point = np.linalg.norm(np.array(vex)-np.array(obstacles), axis=1)
@@ -113,6 +145,94 @@ class Graph:  # Define graph
 		posx = my_generator.uniform(low=-3, high=6)
 		posy = my_generator.uniform(low=-10, high=5)
 		return posx, posy
+
+
+def RRT_star(startpos, endpos, obstacles, n_iter, radius, stepSize):
+	G = Graph(startpos, endpos)
+
+	for _ in tqdm(range(n_iter)):
+		randvex = G.randomPosition()
+		if isInObstacle(randvex, obstacles, radius):
+			continue
+
+		nearvex, nearidx = nearest(G, randvex, obstacles, radius, stepSize)
+		if nearvex is None:
+			continue
+
+		newvex = newVertex(randvex, nearvex, stepSize)
+
+		newidx = G.add_vex(newvex)
+		dist = distance(newvex, nearvex)
+		G.add_edge(newidx, nearidx, dist)
+		G.distances[newidx] = G.distances[nearidx] + dist
+
+		# update nearby vertices distance (if shorter)
+		for vex in G.vertices:
+			if vex == newvex:
+				continue
+
+			dist = distance(vex, newvex)
+			if dist > radius:
+				continue
+
+			line = Line(vex, newvex)
+			if isThruObstacle(line, obstacles, radius):
+				continue
+
+			idx = G.vex2idx[vex]
+			if G.distances[newidx] + dist < G.distances[idx]:
+				G.add_edge(idx, newidx, dist)
+				G.distances[idx] = G.distances[newidx] + dist
+
+		dist = distance(newvex, G.endpos)
+		if dist < 3 * radius:  # a bit of god's hand
+			endidx = G.add_vex(G.endpos)
+			G.add_edge(newidx, endidx, dist)
+			try:
+				G.distances[endidx] = min(G.distances[endidx], G.distances[newidx]+dist)
+			except:
+				G.distances[endidx] = G.distances[newidx]+dist
+
+			G.success = True
+			print('success')
+			break
+	
+	
+	for _ in tqdm(range(int(0.20*n_iter))):
+		randvex = G.randomPosition()
+		if isInObstacle(randvex, obstacles, radius):
+			continue
+
+		nearvex, nearidx = nearest(G, randvex, obstacles, radius, stepSize)
+		if nearvex is None:
+			continue
+
+		newvex = newVertex(randvex, nearvex, stepSize)
+
+		newidx = G.add_vex(newvex)
+		dist = distance(newvex, nearvex)
+		G.add_edge(newidx, nearidx, dist)
+		G.distances[newidx] = G.distances[nearidx] + dist
+
+		# update nearby vertices distance (if shorter)
+		for vex in G.vertices:
+			if vex == newvex:
+				continue
+
+			dist = distance(vex, newvex)
+			if dist > radius:
+				continue
+
+			line = Line(vex, newvex)
+			if isThruObstacle(line, obstacles, radius):
+				continue
+
+			idx = G.vex2idx[vex]
+			if G.distances[newidx] + dist < G.distances[idx]:
+				G.add_edge(idx, newidx, dist)
+				G.distances[idx] = G.distances[newidx] + dist
+
+	return G
 
 
 def RRT(startpos, endpos, obstacles, n_iter, radius, stepSize):  # RRT algorithm
