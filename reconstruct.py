@@ -170,10 +170,12 @@ if __name__ == "__main__":
     views = list()
     transformation_matrices = list()
 
-    remove_floor_and_ceiling = True
+    remove_floor_and_ceiling = False
+
+    use_point_cloud_matching = False  # when true, use the ICP algorithm. Otherwise estimate the transformation matrix from the robot's movement
     
     # This part is used to import views generated autonomously within the global view
-    highest_image_number = 30
+    highest_image_number = 5
     paths_to_depth_images = list()
     paths_to_rgb_images = list()
     for i in range(highest_image_number+1):
@@ -182,7 +184,7 @@ if __name__ == "__main__":
     print("Loaded following images:" + str(paths_to_depth_images))
     paths_to_depth_images.reverse()
 
-    with open('screenshots/automated_views/ground_truth.txt') as f_gt:
+    with open('screenshots/automated_views/ground_truth_coord.txt') as f_gt:
         lines = f_gt.readlines()
     ground_truth_coordinates = list()
     for l in lines: 
@@ -190,6 +192,24 @@ if __name__ == "__main__":
         x_gt, y_gt, z_gt = l.split()
         ground_truth_coordinates.append([float(x_gt), float(y_gt), float(z_gt)])
 
+    with open('screenshots/automated_views/ground_truth_rot.txt') as f_gt:
+        lines = f_gt.readlines()
+    ground_truth_rotation = list()
+    heading = list()
+    for l in lines: 
+        l.strip()  # remove the newline
+        w_gt, x_gt, y_gt, z_gt = l.split()
+        ground_truth_rotation.append([float(w_gt), float(x_gt), float(y_gt), float(z_gt)])
+        if (float(w_gt) >= 0 and float(y_gt) <= 0) or (float(w_gt) <= 0 and float(y_gt) >= 0):
+            cur_heading = np.abs(np.arcsin(float(y_gt))*2)  # if we are between 0° and 180°
+        else:
+            cur_heading = (np.pi - np.abs(np.arcsin(float(y_gt))*2)) + np.pi # if we are between 180° and 360° in the heading (counting from north, right turn is positive)
+        print("current heading: {}°".format((cur_heading/np.pi) * 180))
+        heading.append(cur_heading)  # TODO this means that our heading will be between 0 and 2*pi...
+        #... but if we want to calculate any differences of angles, we must make sure that we don't falsely calculate
+        #... a huge angle. e.g. 300°-15° -> 285° but it should be actually 75°
+
+    
     coordinate_system_origins = list()
     for i in range(len(paths_to_depth_images)):
         tic = time.time()  # used to measure loop execution time
@@ -203,30 +223,50 @@ if __name__ == "__main__":
         pcd2 = depth_image_to_point_cloud("screenshots" + paths_to_depth_images[i+1], "screenshots" + paths_to_rgb_images[i+1], f, axis_displacement)
         print("Processing images: " + str(paths_to_depth_images[i]) + " , " + str(paths_to_depth_images[i+1]))
 
-        voxel_size = 0.1   # 10cm #0.05  # 5cm
+        voxel_size = 0.1   # 10cm #0.05 # 5cm
         source_down, source_fpfh = preprocess_point_cloud(pcd1, voxel_size, majority_voting_downsampling=False)
         target_down, target_fpfh = preprocess_point_cloud(pcd2, voxel_size, majority_voting_downsampling=False)
 
-        result_ransac = execute_global_registration(source_down, target_down, source_fpfh, target_fpfh, voxel_size)
-        print("Global registration=" + str(result_ransac))
-        #draw_registration_result(source_down, target_down, result_ransac.transformation)
+        if use_point_cloud_matching:
+            result_ransac = execute_global_registration(source_down, target_down, source_fpfh, target_fpfh, voxel_size)
+            print("Global registration=" + str(result_ransac))
+            #draw_registration_result(source_down, target_down, result_ransac.transformation)
 
-        result_icp = local_icp_algorithm(source_down, target_down, source_fpfh, target_fpfh, voxel_size)
-        print("ICP result=" + str(result_icp))
-        #draw_registration_result(source_down, target_down, result_icp.transformation)
-        print(result_icp.transformation)
+            result_icp = local_icp_algorithm(source_down, target_down, source_fpfh, target_fpfh, voxel_size)
+            print("ICP result=" + str(result_icp))
+            #draw_registration_result(source_down, target_down, result_icp.transformation)
+            print(result_icp.transformation)
+            cur_transform = result_icp.transformation
+        else:
+            g = copy.deepcopy(ground_truth_coordinates)
+            g.reverse()
+            g = np.array(g)
+            delta_pos = g[i+1] - g[i]
+            np.linalg.norm(delta_pos)
+
+            h = copy.deepcopy(heading)
+            h.reverse()
+            delta_rot = h[i+1] - h[i]  # TODO consider the case that you have a huge delta rot from the 360°->0° transition
+
+            cur_transform = transformation_matrix_from_angles(t_x=delta_pos[0], t_y=delta_pos[1], t_z=delta_pos[2], yaw=0, pitch=delta_rot, roll=0)
+            #cur_transform_v2 = transformation_matrix_from_angles(t_x=delta_pos[2], t_y=delta_pos[1], t_z=delta_pos[0], yaw=0, pitch=delta_rot, roll=0)
+            #print(cur_transform_v2)
+
 
         if transformation_matrices:  # if i >= 1
             for n in range(len(views)):
                 views[n] = views[n].transform(transformation_matrices[i-1])  # transform all previous views to the new coordinate system to daisychain all point clouds together
-                coordinate_system_origins[n] = transformation_matrices[i-1]@coordinate_system_origins[n]
+                try:
+                    coordinate_system_origins[n] = transformation_matrices[i-1]@coordinate_system_origins[n]
+                except:
+                    coordinate_system_origins[n] = transformation_matrices[i-1]@coordinate_system_origins[n].T
 
         source_down.points.append([0, 0, 0])
         source_down.colors.append([1, 0, 0])
 
         coordinate_system_origins.append([0,0,0,1])
         views.append(copy.deepcopy(source_down))
-        transformation_matrices.append(result_icp.transformation)  # save the latest transformation matrix, which will be used in the next iteration
+        transformation_matrices.append(cur_transform)  # save the latest transformation matrix, which will be used in the next iteration
         
         print("Finished iteration #" + str(i) + "/" + str(len(paths_to_depth_images)-1) + " - Total progress=" + str(int(i/(len(paths_to_depth_images)-2)*100)) + "%")
         print("Iteration time [s]=" + str(time.time() - tic))
@@ -261,7 +301,7 @@ if __name__ == "__main__":
             pcd.colors = o3d.utility.Vector3dVector(colors)
             views[v] = pcd
     
-    plt.scatter(np.asarray(views[0].points).take(indices=0, axis=1), np.asarray(views[0].points).take(indices=2, axis=1))  # take x and z values to show them as 2d
+    #plt.scatter(np.asarray(views[0].points).take(indices=0, axis=1), np.asarray(views[0].points).take(indices=2, axis=1))  # take x and z values to show them as 2d
     plt.show()
     o3d.visualization.draw_geometries(views + [pcd_gt])
     print("DONE")

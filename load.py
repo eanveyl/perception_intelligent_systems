@@ -1,7 +1,6 @@
 #export MESA_LOADER_DRIVER_OVERRIDE=i965  USE THIS
 import numpy as np
 from PIL import Image
-import numpy as np
 import habitat_sim
 from habitat_sim.utils.common import d3_40_colors_rgb
 import cv2
@@ -88,8 +87,11 @@ def navigateAndSee(action="", save_semantic_and_depth=True, headless=False):
             cv2.imwrite("automated_front_depth_view" + str(n_view) + ".png", transform_depth(observations["depth_sensor"]))
             cv2.imwrite("automated_front_semantic_view" + str(n_view) + ".png", transform_semantic(observations["semantic_sensor"]))
 
-        text_file = open("ground_truth.txt", "a")
+        text_file = open("ground_truth_coord.txt", "a")  # save x y z coordinates
         n = text_file.write(str(sensor_state.position[0]) + " " + str(sensor_state.position[1]) + " " + str(sensor_state.position[2]) + "\n")
+        text_file.close()
+        text_file = open("ground_truth_rot.txt", "a")  # save rw rx ry rz rotation
+        n = text_file.write(str(sensor_state.rotation.w) + " " + str(sensor_state.rotation.x) + " " + str(sensor_state.rotation.y) + " " + str(sensor_state.rotation.z) + "\n")
         text_file.close()
         n_view += 1  # increases the step number to ensure we don't create file name collisions
         # return camera pose as camera pose: x y z rw rx ry rz
@@ -184,7 +186,7 @@ def follow_path(path: list, start_pos: tuple):
     action_names = list(cfg.agents[sim_settings["default_agent"]].action_space.keys())
 
     # Create configuration parameters for the navigation algorithm
-    rot_step_size = 0.08715573698282242*2
+    rot_step_size = 0.08715573698282242*2  # TODO not sure anymore if this is instead supposed to be arcsin(0.087...)*2 but it still works luckily because sin(x)~x for small x
     fwd_step_size = 0.25
     fine_tune_iterations = 5
 
