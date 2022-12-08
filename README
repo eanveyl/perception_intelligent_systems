@@ -1,0 +1,28 @@
+PERCEPTION AND DECISION MAKING 
+FINAL PROJECT
+
+
+WORKING
+---------------------------------------
+1. Point cloud matching can be done with ground truth data. 
+For this, the translation and rotation matrices are calculated
+directly from the ground truth data. 
+
+IN-PROGRESS
+---------------------------------------
+	
+
+TO RESEARCH FOR POSSIBLITY
+---------------------------------------
+1. how to recognize planar sections and simplify them to flat sections
+	how easy is this?
+	what about runtime? if it is too computationally intensive, 
+	the advantage is negated
+2. check if there is a possibility to implement skeleton map easily
+
+
+TODO
+---------------------------------------
+1. check if the point cloud matching can be done without the preprocess_point_cloud step, 
+which takes a lot of time. 
+

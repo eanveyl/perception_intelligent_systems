@@ -175,7 +175,7 @@ if __name__ == "__main__":
     use_point_cloud_matching = False  # when true, use the ICP algorithm. Otherwise estimate the transformation matrix from the robot's movement
     
     # This part is used to import views generated autonomously within the global view
-    highest_image_number = 13
+    highest_image_number = 87
     paths_to_depth_images = list()
     paths_to_rgb_images = list()
     for i in range(highest_image_number+1):
@@ -246,7 +246,7 @@ if __name__ == "__main__":
 
             h = copy.deepcopy(heading)
             h.reverse()
-            delta_rot = h[i] - h[i+1]  # TODO consider the case that you have a huge delta rot from the 360°->0° transition
+            delta_rot = h[i] - h[i+1]  # consider the case that you have a huge delta rot from the 360°->0° transition
             if np.abs(delta_rot / np.pi * 180) > 12:  # if we have a delta_rot bigger than the (known) rotation step of around 10°
                 print("Catching special case for heading...")
                 if np.pi < delta_rot < 2*np.pi:
@@ -255,12 +255,7 @@ if __name__ == "__main__":
                     delta_rot = (delta_rot + 2*np.pi)*-1
                 delta_rot = delta_rot * -1
 
-
-            # this is og
-            #cur_transform = transformation_matrix_from_angles(t_x=delta_pos[0], t_y=delta_pos[1], t_z=delta_pos[2], yaw=0, pitch=delta_rot, roll=0)
-            # this is attempt to solve it
             cur_transform = transformation_matrix_from_angles(t_z=np.sqrt(delta_pos[0]**2 + delta_pos[2]**2), pitch=delta_rot)
-            #print(cur_transform_v2)
 
 
         if transformation_matrices:  # if i >= 1
@@ -311,7 +306,6 @@ if __name__ == "__main__":
             pcd.colors = o3d.utility.Vector3dVector(colors)
             views[v] = pcd
     
-    #plt.scatter(np.asarray(views[0].points).take(indices=0, axis=1), np.asarray(views[0].points).take(indices=2, axis=1))  # take x and z values to show them as 2d
     plt.show()
     o3d.visualization.draw_geometries(views + [pcd_gt])
     print("DONE")
