@@ -19,6 +19,14 @@ TO RESEARCH FOR POSSIBLITY
 	what about runtime? if it is too computationally intensive, 
 	the advantage is negated
 2. check if there is a possibility to implement skeleton map easily
+	-> doesn't seem to be that easy
+	-> idea would be to match the relative coordinates (already available from the 0,0,0 coordinate 
+	available on each time step) to the world coordinates.
+	-> then process two separate streams of information, check if the two series of world coordinates come 
+	within a radius from one another.
+	-> if they do, consider that they could "share" world coordinates at that moment.
+		-> in this moment, they share the ground truth coordinates and heading data.
+		-> simultaneously, the point cloud from start to that point in time is shared. 
 
 
 TODO
