@@ -6,10 +6,43 @@ WORKING
 ---------------------------------------
 1. Point cloud matching can be done with ground truth data. 
 For this, the translation and rotation matrices are calculated
-directly from the ground truth data. 
+directly from the ground truth data.
+
+	This can be done easily especially for ground vehicles where the (almost) exact delta-position can be 
+	derived from the movement of the wheels, inertial sensors, etc. This might not be as reliable for air 
+	vehicles because they cannot trace their delta-position as accurately as others. 
+	So the limiting factor is here the accuracy of the delta-position estimation with inertial sensors.
+	Especially for air-vehicles, GPS reliance might help fix the issue. But what about GPS-denied areas?
+	
+	Still, the benefit is the greatly reduced need for computational power in this area, since no point matching
+	is required. 
+	
+	TODO: show how much faster this procedure can be!
+	TODO: alternative the "gained" efficiency can be used to reduce the downsampling rate to have much higher resolution and data
 
 IN-PROGRESS
 ---------------------------------------
+1. Working on implementing the skeleton map. 
+	Until now, I'm exploiting the already existing coordinate system origins while transforming to create a skeleton map.
+	I'm considering either doing the network manually or just adding lines to the 3d model since it gives a better representation
+	(within a context) anyways.
+	
+	Skeleton map is kinda working, at least for a very basic case of meeting at the end of the paths. If the meeting point
+	is in the middle, much more complex process needs to be implemented.
+	
+	In theory, this skeleton map concept is really good, since it allows for basic navigation and sharing of information related
+	to this navigation (e.g. the sharing of key information such as recognized objects of interest, landmarks, etc.) without the 
+	need to share the high-rate pointclouds. But sharing navigable information is often not really useful by itself since the
+	robots will anyways have already a way of detecting a navigable path on a world. What is actually determining the benefit of
+	a skeleton map is sharing additional information (keeping it minimal) of the world the other agent has already seen, along with 
+	potential points of interest or landmarks that may help the receiving robot to perform better in its tasks, etc.
+	
+	In practice, the reconstruction accuracy of the algorithm very highly depends on how precise the two agents can localize themselves
+	relative to one another. Because they need to know the relative distance in x,y,z coordinates as well as a delta-heading, for them to have
+	perfect matching reconstructions, they need to estimate their relative position well, otherwise the mismatching error will increase with every
+	transformation performed after that. So this places a huge constraint on air-vehicles.
+	
+	TODO: measure how much memory and network bandwidth can be saved with this process
 	
 
 TO RESEARCH FOR POSSIBLITY
@@ -18,6 +51,25 @@ TO RESEARCH FOR POSSIBLITY
 	how easy is this?
 	what about runtime? if it is too computationally intensive, 
 	the advantage is negated
+	
+	The complexity in this one might be the main problem. See links below: 
+	https://www.researchgate.net/publication/267213438_Detection_of_flat_surfaces_in_three_dimensional_point_clouds_captured_by_Microsoft_Kinect_device
+	https://www.mdpi.com/2076-3417/10/5/1744/htm
+	https://stackoverflow.com/questions/35726134/3d-plane-fitting-algorithms
+	https://www.researchgate.net/publication/259519997_Continuous_plane_detection_in_point-cloud_data_based_on_3D_Hough_Transform
+	https://stackoverflow.com/questions/38754668/plane-fitting-in-a-3d-point-cloud
+	https://github.com/daavoo/pyntcloud
+	https://stackoverflow.com/questions/39159102/fit-a-plane-to-3d-point-cloud-using-ransac
+	https://github.com/STORM-IRIT/Plane-Detection-Point-Cloud
+	
+	The two main possibilities are the 3D Hough Transform which was originally used to detect lines in 3D spaces (or borders)
+	and the RANSAC algorithm. But both seem to be very complicated, they are also relatively unreliable when thrown into 
+	complicated point clouds of potentially million points. 
+	This means that this feature, while feasible on paper, might be actually a big problem to implement on 
+	small systems with limited processing power and hardware.
+	
+	
+	
 2. check if there is a possibility to implement skeleton map easily
 	-> doesn't seem to be that easy
 	-> idea would be to match the relative coordinates (already available from the 0,0,0 coordinate 
@@ -33,4 +85,5 @@ TODO
 ---------------------------------------
 1. check if the point cloud matching can be done without the preprocess_point_cloud step, 
 which takes a lot of time. 
+
 

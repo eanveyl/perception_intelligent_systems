@@ -1,14 +1,13 @@
-from gettext import translation
-from unittest import result
 import cv2
 import numpy as np
 import open3d as o3d
 import copy
 import time
-import scipy.optimize
 from collections import Counter
 import matplotlib.colors
 import matplotlib.pyplot as plt
+import networkx as nx
+from matplotlib import collections  as mc
 
 
 def transformation_matrix_from_angles(t_x=0, t_y=0, t_z=0, yaw=0, pitch=0, roll=0):
@@ -24,9 +23,6 @@ def transformation_matrix_from_angles(t_x=0, t_y=0, t_z=0, yaw=0, pitch=0, roll=
     rotation_matrix = r_yaw @ r_pitch @ r_roll
     R = np.vstack((np.hstack((rotation_matrix, np.zeros((3,1)))),[0,0,0,1]))  # rotation matrix
     return T@R
-
-def pcd_rescale(pcd, scale):
-    return o3d.utility.Vector3dVector(np.asarray(pcd.points)*scale)
 
 
 def custom_voxel_down(pcd, voxel_size):
@@ -63,6 +59,7 @@ def depth_image_to_point_cloud(path_depth, path_rgb, f, axis_displacement):
 
     return pcd
 
+
 def preprocess_point_cloud(pcd, voxel_size, majority_voting_downsampling=False):
     print(":: Downsample with a voxel size %.3f." % voxel_size)
 
@@ -71,7 +68,6 @@ def preprocess_point_cloud(pcd, voxel_size, majority_voting_downsampling=False):
     else:
         print("Using custom voxel downsampling!")
         pcd_down = custom_voxel_down(pcd, voxel_size)  # uses majority class voting to decide on the color for the resulting point after the downsampling.     
-
 
     radius_normal = voxel_size * 2
     print(":: Estimate normal with search radius %.3f." % radius_normal)
@@ -84,6 +80,7 @@ def preprocess_point_cloud(pcd, voxel_size, majority_voting_downsampling=False):
         pcd_down,
         o3d.geometry.KDTreeSearchParamHybrid(radius=radius_feature, max_nn=100))
     return pcd_down, pcd_fpfh
+
 
 def execute_global_registration(source_down, target_down, source_fpfh,
                                 target_fpfh, voxel_size):
@@ -103,6 +100,7 @@ def execute_global_registration(source_down, target_down, source_fpfh,
         ], o3d.pipelines.registration.RANSACConvergenceCriteria(100000, 0.999))
     return result
 
+
 def draw_registration_result(source, target, transformation):
     source_temp = copy.deepcopy(source)
     target_temp = copy.deepcopy(target)
@@ -115,6 +113,32 @@ def draw_registration_result(source, target, transformation):
                                       lookat=[1.9892, 2.0208, 1.8945],
                                       up=[-0.2779, -0.9482, 0.1556])
 
+
+def plot_paths(coords, nxgraph, filename):
+    # Retrieve created graph nodes
+    px = [x for x, y in coords]
+    py = [y for x, y in coords]
+
+    # And plot them along the rest of the 2D world
+    fig, ax = plt.subplots()
+    ax.scatter(px, py, c='red')  # add normal graph nodes in cyan color
+
+    lines = [(nx.get_node_attributes(nxgraph, "pos")[e_idxs[0]], nx.get_node_attributes(nxgraph, "pos")[e_idxs[1]]) for e_idxs in nxgraph.edges]
+    #lines = [(G.vertices[edge[0]], G.vertices[edge[1]]) for edge in G.edges]
+    lc = mc.LineCollection(lines, colors='green', linewidths=2)  # connecting normal graph nodes in green
+    ax.add_collection(lc)
+
+    #plt.show()  # buggy
+    plt.savefig(filename)
+
+
+def apply_transform_to_pcd_list(pcd_in: o3d.geometry.PointCloud, matrix) -> None:  # this happens implace
+    pcd = copy.deepcopy(pcd_in)
+    for i,_ in enumerate(pcd):
+        pcd[i].transform(matrix)
+
+    return pcd
+
 def local_icp_algorithm(source, target, source_fpfh, target_fpfh, voxel_size):
     distance_threshold = voxel_size * 0.4
     print(":: Point-to-plane ICP registration is applied on original point")
@@ -124,6 +148,7 @@ def local_icp_algorithm(source, target, source_fpfh, target_fpfh, voxel_size):
         source, target, distance_threshold, result_ransac.transformation,
         o3d.pipelines.registration.TransformationEstimationPointToPlane())
     return result
+
 
 def process_views(highest_image_number: int, path_to_folder: str, use_point_cloud_matching: bool, f: int, remove_floor_and_ceiling: bool):
     views = list()
@@ -222,7 +247,7 @@ def process_views(highest_image_number: int, path_to_folder: str, use_point_clou
         source_down.points.append([0, 0, 0])
         source_down.colors.append([1, 0, 0])
 
-        coordinate_system_origins.append([0,0,0,1])
+        coordinate_system_origins.append(np.matrix([0,0,0,1]))
         views.append(copy.deepcopy(source_down))
         transformation_matrices.append(cur_transform)  # save the latest transformation matrix, which will be used in the next iteration
         
@@ -236,7 +261,8 @@ def process_views(highest_image_number: int, path_to_folder: str, use_point_clou
     ground_truth_coordinates = np.multiply(np.array([1,1,-1]), ground_truth_coordinates)  # invert the z axis
 
     # Add the estimated coordinate origins
-    calibration = np.subtract(ground_truth_coordinates[0], coordinate_system_origins[-1][0:3])  # calculate the difference between the first two coordinates
+    coordinate_system_origins[-1] = coordinate_system_origins[-1].T  # flip the last one because it is horizontally aligned and not vertical
+    calibration = np.subtract(ground_truth_coordinates[0], coordinate_system_origins[-1][0:3])[0]  # calculate the difference between the first two coordinates
     ground_truth_coordinates_calibrated = np.subtract(ground_truth_coordinates, calibration)  # and use that to move the ground truth ever so slightly to align the first points
     pcd_gt.points = o3d.utility.Vector3dVector(ground_truth_coordinates_calibrated)
 
@@ -259,19 +285,73 @@ def process_views(highest_image_number: int, path_to_folder: str, use_point_clou
             pcd.colors = o3d.utility.Vector3dVector(colors)
             views[v] = pcd
 
-    return ground_truth_coordinates_calibrated, ground_truth_rotation, heading, views, coordinate_system_origins, transformation_matrices, pcd_gt
+    return ground_truth_coordinates, ground_truth_rotation, heading, views, coordinate_system_origins, transformation_matrices, pcd_gt
+
 
 if __name__ == "__main__":
     f = 256  # focal length
     axis_displacement = 256
-    remove_floor_and_ceiling = False
+    remove_floor_and_ceiling = True
     use_point_cloud_matching = False  # when true, use the ICP algorithm. Otherwise estimate the transformation matrix from the robot's movement
-    
+
     # This part is used to import views generated autonomously within the global view
+    # Process Agent A
     highest_image_number = 40
     a1_ground_truth_coordinates, a1_ground_truth_rotation, a1_heading, a1_views, a1_coordinate_system_origins, a1_transformation_matrices, a1_pcd_gt = process_views(highest_image_number, "/automated_views_multirobot1", use_point_cloud_matching, f, remove_floor_and_ceiling)
-    
-    plt.show()
     o3d.visualization.draw_geometries(a1_views + [a1_pcd_gt])
+    
+    a1_walkable = list(zip([cs[0].item() for cs in a1_coordinate_system_origins], [cs[2].item() for cs in a1_coordinate_system_origins]))
+    a1_walkable.reverse()
+    a1_graph = nx.Graph()
+    for i, e in enumerate(a1_walkable):
+        a1_graph.add_node(i, pos=e)
+        if i == 0:
+            continue
+        else: 
+            a1_graph.add_edge(i-1, i)
+
+    plot_paths(a1_walkable, a1_graph, "a1_walkable.png")
+    # TRY THIS: http://www.open3d.org/docs/0.7.0/tutorial/Basic/visualization.html
+
+    # Process Agent B
+    highest_image_number = 19
+    a2_ground_truth_coordinates, a2_ground_truth_rotation, a2_heading, a2_views, a2_coordinate_system_origins, a2_transformation_matrices, a2_pcd_gt = process_views(highest_image_number, "/automated_views_multirobot2", use_point_cloud_matching, f, remove_floor_and_ceiling)
+    o3d.visualization.draw_geometries(a1_views + a2_views)
+    
+    a2_walkable = list(zip([cs[0].item() for cs in a2_coordinate_system_origins], [cs[2].item() for cs in a2_coordinate_system_origins]))
+    a2_walkable.reverse()
+    a2_graph = nx.Graph()
+    for i, e in enumerate(a2_walkable):
+        a2_graph.add_node(i, pos=e)
+        if i == 0:
+            continue
+        else: 
+            a2_graph.add_edge(i-1, i)
+
+    plot_paths(a2_walkable, a2_graph, "a2_walkable.png")
+
+    # Now, let Agent A and Agent B meet
+    # This works, but it's kinda cheating. 
+    v = np.subtract(a2_ground_truth_coordinates[0], a1_ground_truth_coordinates[0])
+    delta_heading = a1_heading[0] - a2_heading[0]  # heading difference at their start positions. Typically 0. TODO for delta_heading different than 0 we should check this code if it's no buggy
+    bridge_transform = transformation_matrix_from_angles(t_x=v[0], t_y=v[1], t_z=v[2], pitch=delta_heading)
+    a2_views = apply_transform_to_pcd_list(a2_views, bridge_transform)  # this happens inplace
+    a2_coordinate_system_origins = [bridge_transform@cs for cs in a2_coordinate_system_origins]  # transform the coordinate system origins
+
+    o3d.visualization.draw_geometries(a1_views + a2_views)
+
+    # careful here, we reverse() the second list because we want to append the nodes from last to first (seen from traveled order)
+    a2_walkable_transformed = list(zip([cs[0].item() for cs in a2_coordinate_system_origins], [cs[2].item() for cs in a2_coordinate_system_origins]))
+#    a2_walkable_transformed.reverse()
+    a12_walkable = a1_walkable + a2_walkable_transformed
+    a12_graph = nx.Graph()
+    for i, e in enumerate(a12_walkable):
+        a12_graph.add_node(i, pos=e)
+        if i == 0:
+            continue
+        else: 
+            a12_graph.add_edge(i-1, i)
+    plot_paths(a12_walkable, a12_graph, "a12_walkable.png")
+
     print("DONE")
 

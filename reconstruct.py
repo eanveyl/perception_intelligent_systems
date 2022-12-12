@@ -5,7 +5,6 @@ import numpy as np
 import open3d as o3d
 import copy
 import time
-import scipy.optimize
 from collections import Counter
 import matplotlib.colors
 import matplotlib.pyplot as plt
@@ -42,24 +41,6 @@ def transformation_matrix_from_angles(t_x=0, t_y=0, t_z=0, yaw=0, pitch=0, roll=
 def pcd_rescale(pcd, scale):
     return o3d.utility.Vector3dVector(np.asarray(pcd.points)*scale)
 
-def alignment_loss_function(translation_and_angles, source_points, target_points):
-    source_point0 = np.hstack((source_points[0], [1]))
-    target_point0 = np.hstack((target_points[0], [1]))
-    source_point1 = np.hstack((source_points[1], [1]))  # append a 1 at the end of the 3D vector since it is a homogeneous coordinate system
-    target_point1 = np.hstack((target_points[1], [1]))
-    source_point2 = np.hstack((source_points[2], [1]))
-    target_point2 = np.hstack((source_points[2], [1]))
-    t_x, t_y, t_z, yaw, pitch, roll = translation_and_angles  # unpack the values
-    transformation_matrix = transformation_matrix_from_angles(t_x=t_x, t_y=t_y, t_z=t_z, yaw=yaw, pitch=pitch, roll=roll)
-    v1 = np.linalg.norm(np.subtract(transformation_matrix@source_point1, target_point1))
-    v2 = np.linalg.norm(np.subtract(transformation_matrix@source_point0, target_point0))  
-    v3 = np.linalg.norm(np.subtract(transformation_matrix@source_point2, target_point2)) # distance from one vector to the other one MINIMIZE THIS
-
-    loss = v1 + v2 + v3
-
-    #print("Loss=" + str(loss) + " | transformation_matrix=" + str(transformation_matrix))
-    #print("Loss=" + str(loss) + " | v1=" + str(v1) + " v2=" + str(v2) + " v3=" + str(v3))
-    return loss
 
 def custom_voxel_down(pcd, voxel_size):
     pcd_down, _, merged_points_list = pcd.voxel_down_sample_and_trace(voxel_size, pcd.get_min_bound(), pcd.get_max_bound(), approximate_class=True)
@@ -74,11 +55,6 @@ def custom_voxel_down(pcd, voxel_size):
 
     return pcd_down
 
-
-def match_orientation(source_vector, target_vector, method=None):
-    sol = scipy.optimize.minimize(alignment_loss_function, x0=np.random.rand(6,1), args=(source_vector, target_vector), method=method)
-    print(sol)
-    return sol
 
 def depth_image_to_point_cloud(path_depth, path_rgb, f, axis_displacement):
     img_depth = cv2.imread(path_depth)
@@ -306,7 +282,6 @@ if __name__ == "__main__":
             pcd.colors = o3d.utility.Vector3dVector(colors)
             views[v] = pcd
     
-    plt.show()
     o3d.visualization.draw_geometries(views + [pcd_gt])
     print("DONE")
 
